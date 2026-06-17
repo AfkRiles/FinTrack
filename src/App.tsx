@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from './store/useAppStore'
-import { TabBar } from './components/layout/TabBar'
+import { Sidebar } from './components/layout/Sidebar'
 import { IncomePage } from './pages/Income'
 import { NetWorthPage } from './pages/NetWorth'
 import { StatsPage } from './pages/Stats'
 import { SettingsModal } from './pages/Settings'
 import { seedDefaultCategories } from './lib/db'
+import { seedImportedData } from './lib/seedData'
 import { ensureFXRate } from './lib/fx'
 
 export default function App() {
@@ -28,75 +29,68 @@ export default function App() {
     apply(theme)
     if (theme === 'system') {
       const mq = window.matchMedia('(prefers-color-scheme: dark)')
-      const handler = (e: MediaQueryListEvent) => { if (theme === 'system') apply(e.matches ? 'dark' : 'light') }
+      const handler = (e: MediaQueryListEvent) => apply(e.matches ? 'dark' : 'light')
       mq.addEventListener('change', handler)
       return () => mq.removeEventListener('change', handler)
     }
   }, [theme])
 
-  // Boot
+  // Boot: seed categories, import data, fetch FX
   useEffect(() => {
-    seedDefaultCategories().then(() => setMounted(true))
+    Promise.all([
+      seedDefaultCategories(),
+      seedImportedData(),
+    ]).then(() => setMounted(true))
     ensureFXRate().then(rate => setFXRate({ usdToZar: rate, fetchedAt: Date.now() }))
   }, [])
 
   if (!mounted) {
     return (
       <div className="mesh-bg h-dvh w-screen flex items-center justify-center">
-        <div className="text-[var(--text-muted)] text-sm animate-pulse">Loading FinTrack…</div>
+        <div className="text-center">
+          <div className="w-12 h-12 fab rounded-2xl mx-auto mb-4 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+          </div>
+          <div className="text-[var(--text-muted)] text-sm animate-pulse">Loading FinTrack…</div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="mesh-bg h-dvh w-screen flex flex-col overflow-hidden">
-      {/* Header bar */}
-      <div
-        className="flex-shrink-0 flex items-center justify-between px-6 relative z-20"
-        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
-      >
-        <div />
-        <div className="flex items-center gap-2">
-          {/* Theme toggle */}
-          <button
-            onClick={() => {
-              const store = useAppStore.getState()
-              const next = store.theme === 'dark' ? 'light' : 'dark'
-              store.setTheme(next)
-            }}
-            className="w-9 h-9 glass-sm rounded-full flex items-center justify-center text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
-          >
-            {theme === 'dark'
-              ? <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><path d="M12 3v1m0 16v1m8.66-10H21M3 12H2m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-              : <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-            }
-          </button>
-          {/* Settings */}
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="w-9 h-9 glass-sm rounded-full flex items-center justify-center text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
-          >
-            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-            </svg>
-          </button>
+    <div className="mesh-bg h-dvh w-screen flex overflow-hidden">
+      {/* Sidebar */}
+      <Sidebar onOpenSettings={() => setSettingsOpen(true)} />
+
+      {/* Main content */}
+      <main className="flex-1 overflow-hidden flex flex-col relative z-10">
+        {/* Top bar */}
+        <header className="flex-shrink-0 flex items-center justify-between px-8 py-4 border-b border-[var(--border)]">
+          <div>
+            <h1 className="text-xl font-bold text-[var(--text-primary)]">
+              {activeTab === 'income' && 'Income Dashboard'}
+              {activeTab === 'networth' && 'Net Worth'}
+              {activeTab === 'stats' && 'Analytics'}
+            </h1>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              {new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <div className="flex-1 overflow-hidden">
+          <div key={activeTab} className="h-full page-enter">
+            {activeTab === 'income' && <IncomePage />}
+            {activeTab === 'networth' && <NetWorthPage />}
+            {activeTab === 'stats' && <StatsPage />}
+          </div>
         </div>
-      </div>
+      </main>
 
-      {/* Page content */}
-      <div className="flex-1 relative z-10 overflow-hidden">
-        <div key={activeTab} className="h-full">
-          {activeTab === 'income' && <IncomePage />}
-          {activeTab === 'networth' && <NetWorthPage />}
-          {activeTab === 'stats' && <StatsPage />}
-        </div>
-      </div>
-
-      {/* Tab bar */}
-      <TabBar onOpenSettings={() => setSettingsOpen(true)} />
-
-      {/* Settings */}
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
