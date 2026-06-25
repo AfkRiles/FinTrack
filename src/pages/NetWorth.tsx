@@ -56,9 +56,11 @@ export function NetWorthPage() {
     pct: `${grandTotal > 0 ? ((s.value / grandTotal) * 100).toFixed(1) : 0}%`,
   }))
 
-  // Split crypto holdings: wallet-synced vs manual
-  const walletHoldings = (cryptoHoldings || []).filter(h => h.source === 'wallet')
-  const manualHoldings = (cryptoHoldings || []).filter(h => h.source !== 'wallet')
+  // Split crypto holdings: wallet-synced vs manual, both sorted highest → lowest value
+  const byValue = (a: CryptoHolding, b: CryptoHolding) =>
+    (b.quantity * (b.lastPrice || 0)) - (a.quantity * (a.lastPrice || 0))
+  const walletHoldings = (cryptoHoldings || []).filter(h => h.source === 'wallet').sort(byValue)
+  const manualHoldings = (cryptoHoldings || []).filter(h => h.source !== 'wallet').sort(byValue)
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -278,7 +280,7 @@ export function NetWorthPage() {
               <div className="overflow-y-auto" style={{ maxHeight: 320, scrollbarWidth: 'none' }}>
                 {(stockHoldings || []).length === 0
                   ? <EmptyState label="No stock holdings yet." onAdd={() => setAddStock(true)} color="#4F46E5" />
-                  : (stockHoldings || []).map(h => (
+                  : [...(stockHoldings || [])].sort((a, b) => (b.quantity * (b.lastKnownPrice || 0)) - (a.quantity * (a.lastKnownPrice || 0))).map(h => (
                     <HoldingRow
                       key={h.id}
                       symbol={h.ticker}
@@ -299,7 +301,11 @@ export function NetWorthPage() {
               <div className="overflow-y-auto" style={{ maxHeight: 320, scrollbarWidth: 'none' }}>
                 {(cashHoldings || []).length === 0
                   ? <EmptyState label="No accounts yet." onAdd={() => setAddCash(true)} color="#0D9488" />
-                  : (cashHoldings || []).map(h => {
+                  : [...(cashHoldings || [])].sort((a, b) => {
+                    const aUSD = a.currency === 'ZAR' ? a.amount / rate : a.amount
+                    const bUSD = b.currency === 'ZAR' ? b.amount / rate : b.amount
+                    return bUSD - aUSD
+                  }).map(h => {
                     const amtUSD = h.currency === 'ZAR' ? h.amount / rate : h.amount
                     return (
                       <HoldingRow

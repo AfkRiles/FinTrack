@@ -95,15 +95,26 @@ async function evmFallback(rpcs: string[], method: string, params: unknown[]): P
 
 // ─── Per-chain balance fetchers ───────────────────────────────────────────────
 
-/** BTC: confirmed + unconfirmed (mempool) balance */
+/** BTC: confirmed balance only (chain_stats). mempool.space first, blockstream fallback. */
 async function fetchBTC(address: string): Promise<number> {
-  const r = await fetch(`https://blockstream.info/api/address/${address}`, {
-    signal: AbortSignal.timeout(10000),
-  })
-  if (!r.ok) throw new Error(`Blockstream HTTP ${r.status}`)
-  const d = await r.json()
-  const c = d.chain_stats, m = d.mempool_stats
-  return (c.funded_txo_sum - c.spent_txo_sum + m.funded_txo_sum - m.spent_txo_sum) / 1e8
+  const endpoints = [
+    'https://mempool.space/api',
+    'https://blockstream.info/api',
+  ]
+  let last: Error = new Error('BTC fetch failed')
+  for (const base of endpoints) {
+    try {
+      const r = await fetch(`${base}/address/${address}`, { signal: AbortSignal.timeout(10000) })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const d = await r.json()
+      const c = d.chain_stats
+      // Confirmed balance only — mempool txs are unspendable/unreliable
+      return (c.funded_txo_sum - c.spent_txo_sum) / 1e8
+    } catch (e) {
+      last = e instanceof Error ? e : new Error(String(e))
+    }
+  }
+  throw last
 }
 
 /** ETH native balance — tries 4 public RPCs */
