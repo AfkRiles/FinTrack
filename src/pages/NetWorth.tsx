@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { GlassCard } from '../components/ui/GlassCard'
 import { DonutWithLegend } from '../components/ui/DonutChart'
-import { CurrencyToggle } from '../components/ui/CurrencyToggle'
 import { db } from '../lib/db'
 import { useAppStore } from '../store/useAppStore'
 import { formatZAR, formatUSD, formatTime } from '../lib/fx'
@@ -24,9 +23,9 @@ export function NetWorthPage() {
   const totalUSD    = cryptoTotal + stockTotal + cashTotal
 
   const sections = [
-    { id: 'crypto', label: 'Crypto', value: cryptoTotal, color: '#F7931A', count: cryptoHoldings?.length || 0 },
-    { id: 'stocks', label: 'Stocks', value: stockTotal,  color: '#2196F3', count: stockHoldings?.length || 0 },
-    { id: 'cash',   label: 'Bank / Cash', value: cashTotal, color: '#00C27C', count: cashHoldings?.length || 0 },
+    { id: 'crypto', label: 'Crypto',     value: cryptoTotal, color: '#D97706', count: cryptoHoldings?.length || 0 },
+    { id: 'stocks', label: 'Stocks',     value: stockTotal,  color: '#4F46E5', count: stockHoldings?.length || 0 },
+    { id: 'cash',   label: 'Bank / Cash', value: cashTotal,  color: '#0D9488', count: cashHoldings?.length || 0 },
   ]
 
   const donutSegments = sections.filter(s => s.value > 0).map(s => ({ value: s.value, color: s.color, label: s.label }))
@@ -39,11 +38,14 @@ export function NetWorthPage() {
     <div className="page-scroll">
       <div className="p-8 space-y-6 page-enter">
 
+        {/* Page header */}
         <div className="flex items-center justify-between">
-          <CurrencyToggle />
-          {fxRate && (
-            <span className="text-xs text-[var(--text-muted)]">Updated {formatTime(fxRate.fetchedAt)}</span>
-          )}
+          <div>
+            <h1 className="text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">Net Worth</h1>
+            <p className="text-sm text-[var(--text-muted)] mt-0.5">
+              {fxRate ? `Rate: 1 USD = ${fxRate.usdToZar.toFixed(2)} ZAR · Updated ${formatTime(fxRate.fetchedAt)}` : 'Fetching exchange rate…'}
+            </p>
+          </div>
         </div>
 
         {/* Top row: hero + 3 category cards */}
@@ -87,7 +89,7 @@ export function NetWorthPage() {
             {expandedSection === 'crypto' && (
               <HoldingsTable
                 title="Crypto Holdings"
-                color="#F7931A"
+                color="#D97706"
                 rows={(cryptoHoldings || []).map(h => ({
                   id: h.id, symbol: h.symbol, name: h.name,
                   detail: `${h.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })} × ${h.lastPrice ? `$${h.lastPrice.toLocaleString()}` : 'N/A'}`,
@@ -100,7 +102,7 @@ export function NetWorthPage() {
             {expandedSection === 'stocks' && (
               <HoldingsTable
                 title="Stock Holdings"
-                color="#2196F3"
+                color="#4F46E5"
                 rows={(stockHoldings || []).map(h => ({
                   id: h.id, symbol: h.ticker, name: h.exchange,
                   detail: `${h.quantity} × ${h.lastKnownPrice ? `$${h.lastKnownPrice.toLocaleString()}` : 'N/A'}`,
@@ -113,7 +115,7 @@ export function NetWorthPage() {
             {expandedSection === 'cash' && (
               <HoldingsTable
                 title="Bank / Cash"
-                color="#00C27C"
+                color="#0D9488"
                 rows={(cashHoldings || []).map(h => {
                   const amtUSD = h.currency === 'ZAR' ? h.amount / rate : h.amount
                   return {

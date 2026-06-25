@@ -4,7 +4,6 @@ import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } f
 import { GlassCard } from '../components/ui/GlassCard'
 import { DonutWithLegend } from '../components/ui/DonutChart'
 import { BarChart } from '../components/ui/BarChart'
-import { CurrencyToggle } from '../components/ui/CurrencyToggle'
 import { AddIncomeSheet } from '../components/income/AddIncomeSheet'
 import { db } from '../lib/db'
 import { useAppStore } from '../store/useAppStore'
@@ -41,6 +40,11 @@ export function IncomePage() {
   const thisMonthEntries = allEntries?.filter(e => e.date >= thisMonthStart && e.date <= thisMonthEnd) || []
   const thisMonthTotal = thisMonthEntries.reduce((s, e) => s + e.amountUSD, 0)
 
+  const lastMonthStart = subMonths(startOfMonth(now), 1).getTime()
+  const lastMonthEntries = allEntries?.filter(e => e.date >= lastMonthStart && e.date < thisMonthStart) || []
+  const lastMonthTotal = lastMonthEntries.reduce((s, e) => s + e.amountUSD, 0)
+  const momPct = lastMonthTotal > 0 ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100 : null
+
   const yearStart = startOfYear(new Date(selectedYear, 0)).getTime()
   const yearEnd = endOfYear(new Date(selectedYear, 0)).getTime()
   const yearEntries = allEntries?.filter(e => e.date >= yearStart && e.date <= yearEnd) || []
@@ -65,6 +69,7 @@ export function IncomePage() {
   }))
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
   const monthlyBars = MONTHS.map((label, i) => {
     const mStart = new Date(selectedYear, i, 1).getTime()
     const mEnd = endOfMonth(new Date(selectedYear, i)).getTime()
@@ -74,8 +79,8 @@ export function IncomePage() {
     entries.forEach(e => catTotals.set(e.categoryId, (catTotals.get(e.categoryId) || 0) + e.amountUSD))
     let topCatId = ''; let topVal = 0
     catTotals.forEach((v, k) => { if (v > topVal) { topVal = v; topCatId = k } })
-    const color = (categories || []).find(c => c.id === topCatId)?.color || '#00C27C'
-    return { label, value, color }
+    const color = (categories || []).find(c => c.id === topCatId)?.color || 'var(--accent)'
+    return { label, value, color, fullLabel: `${MONTH_NAMES[i]} ${selectedYear}` }
   })
 
   if (drillMonth) {
@@ -85,59 +90,59 @@ export function IncomePage() {
         categories={categories || []}
         entries={allEntries || []}
         fmt={fmt}
-        onBack={() => setDrillMonth(null)}
+        onBack={() => { setDrillMonth(null); setSelectedMonthIndex(null) }}
       />
     )
   }
 
   return (
     <div className="page-scroll">
-      <div className="p-8 space-y-6 page-enter">
+      <div className="p-8 space-y-5 page-enter">
 
-        {/* Currency + controls row */}
-        <div className="flex items-center justify-between">
-          <CurrencyToggle />
-          <button
-            onClick={() => { setPrefillDate(now); setAddOpen(true) }}
-            className="fab px-5 py-2.5 rounded-2xl text-white text-sm font-bold flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all"
-          >
-            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
-              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-            </svg>
-            Add Income
-          </button>
+        {/* Page header */}
+        <div>
+          <h1 className="text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">Dashboard</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-0.5">{format(now, 'EEEE, MMMM d, yyyy')}</p>
         </div>
 
         {/* Stat cards row */}
         <div className="grid grid-cols-4 gap-4">
-          <GlassCard
+          {/* This Month — primary hero card */}
+          <div
+            className="glass rounded-3xl p-5 card-hover cursor-pointer"
+            style={{ background: 'linear-gradient(135deg, #10B981, #059669)', border: '1px solid rgba(255,255,255,0.12)' }}
             onClick={() => { setPrefillDate(now); setAddOpen(true) }}
-            style={{ background: 'linear-gradient(135deg, #00C27C, #009A5E)' }}
-            className="cursor-pointer hover:scale-[1.01] transition-all"
           >
-            <div className="label text-white/70">THIS MONTH</div>
-            <div className="hero-number text-white mt-2 text-3xl">
+            <div className="label text-white/60">THIS MONTH</div>
+            <div className="mt-2 text-3xl font-extrabold text-white tracking-tight leading-none">
               {thisMonthTotal === 0 ? (currency === 'ZAR' ? 'R0' : '$0') : fmt(thisMonthTotal)}
             </div>
-            <div className="text-white/70 text-xs mt-1">{format(now, 'MMMM yyyy')}</div>
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="text-white/60 text-xs">{format(now, 'MMMM yyyy')}</div>
+              {momPct !== null && (
+                <div className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${momPct >= 0 ? 'bg-white/15 text-white' : 'bg-black/15 text-white/80'}`}>
+                  {momPct >= 0 ? '↑' : '↓'} {Math.abs(momPct).toFixed(0)}%
+                </div>
+              )}
+            </div>
+          </div>
+
+          <GlassCard className="card-hover">
+            <div className="label">YEAR TO DATE</div>
+            <div className="mt-2 text-3xl font-extrabold text-[var(--text-primary)] tracking-tight leading-none">{fmt(yearTotal)}</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1.5">{selectedYear}</div>
           </GlassCard>
 
-          <GlassCard>
-            <div className="label">YEAR TOTAL</div>
-            <div className="hero-number mt-2 text-3xl">{fmt(yearTotal)}</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">{selectedYear}</div>
+          <GlassCard className="card-hover">
+            <div className="label">ROLLING 3-MO AVG</div>
+            <div className="mt-2 text-3xl font-extrabold text-[var(--text-primary)] tracking-tight leading-none">{fmt(avg3)}</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1.5">Per month</div>
           </GlassCard>
 
-          <GlassCard>
-            <div className="label">3-MO AVERAGE</div>
-            <div className="hero-number mt-2 text-3xl">{fmt(avg3)}</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">Rolling 3 months</div>
-          </GlassCard>
-
-          <GlassCard>
-            <div className="label">ALL TIME</div>
-            <div className="hero-number mt-2 text-3xl">{fmt(allTimeTotal)}</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">{allEntries?.length || 0} entries</div>
+          <GlassCard className="card-hover">
+            <div className="label">LIFETIME INCOME</div>
+            <div className="mt-2 text-3xl font-extrabold text-[var(--text-primary)] tracking-tight leading-none">{fmt(allTimeTotal)}</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1.5">{allEntries?.length || 0} total entries</div>
           </GlassCard>
         </div>
 
@@ -152,36 +157,51 @@ export function IncomePage() {
                   total={fmt(yearTotal)}
                   subtitle={String(selectedYear)}
                   size={160}
-                  thickness={26}
+                  thickness={24}
                   legendItems={legendItems}
                 />
-              : <div className="text-center py-8 text-[var(--text-muted)] text-sm">No data for {selectedYear}</div>
+              : (
+                <div className="flex flex-col items-center justify-center py-10 text-[var(--text-muted)]">
+                  <div className="text-3xl mb-2 opacity-30">◎</div>
+                  <div className="text-sm font-medium">No data for {selectedYear}</div>
+                </div>
+              )
             }
           </GlassCard>
 
           {/* Bar chart — 3/5 */}
           <GlassCard className="col-span-3" noPadding>
             <div className="flex items-center justify-between px-6 pt-5 pb-3">
-              <div className="label">MONTHLY — {selectedYear}</div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setSelectedYear(y => y - 1)} className="w-7 h-7 glass-sm rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)]">‹</button>
-                <span className="font-bold text-sm text-[var(--text-primary)] w-10 text-center">{selectedYear}</span>
-                <button onClick={() => setSelectedYear(y => y + 1)} className="w-7 h-7 glass-sm rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)]">›</button>
+              <div className="label">MONTHLY INCOME — {selectedYear}</div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setSelectedYear(y => y - 1)}
+                  className="w-7 h-7 glass-sm rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all font-bold cursor-pointer"
+                >
+                  ‹
+                </button>
+                <span className="font-bold text-sm text-[var(--text-primary)] w-12 text-center tabular-nums">{selectedYear}</span>
+                <button
+                  onClick={() => setSelectedYear(y => y + 1)}
+                  className="w-7 h-7 glass-sm rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all font-bold cursor-pointer"
+                >
+                  ›
+                </button>
               </div>
             </div>
-            <div className="px-4 pb-5">
+            <div className="px-5 pb-5">
               <BarChart
                 bars={monthlyBars}
                 onBarClick={i => { setSelectedMonthIndex(i); setDrillMonth(new Date(selectedYear, i, 1)) }}
                 activeIndex={selectedMonthIndex ?? undefined}
                 formatValue={v => currency === 'ZAR' ? formatZAR(v * rate) : formatUSD(v)}
-                height={200}
+                height={190}
               />
             </div>
           </GlassCard>
         </div>
 
-        {/* Recent entries */}
+        {/* Recent entries — scrollable, capped height */}
         <RecentEntries entries={allEntries || []} categories={categories || []} fmt={fmt} />
 
       </div>
@@ -194,39 +214,78 @@ export function IncomePage() {
 function RecentEntries({ entries, categories, fmt }: {
   entries: IncomeEntry[]; categories: Category[]; fmt: (usd: number) => string
 }) {
-  const recent = [...entries].sort((a, b) => b.date - a.date).slice(0, 20)
+  const recent = [...entries].sort((a, b) => b.date - a.date).slice(0, 30)
   if (recent.length === 0) return null
+
+  const ROW_HEIGHT = 60 // px per row
+  const VISIBLE_ROWS = 4
+  const maxHeight = ROW_HEIGHT * VISIBLE_ROWS
 
   return (
     <GlassCard noPadding className="overflow-hidden">
-      <div className="px-6 py-4 border-b border-[var(--border-subtle)]">
+      <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
         <div className="label">RECENT ENTRIES</div>
+        <div className="text-[10px] text-[var(--text-muted)] font-medium">{entries.length} total</div>
       </div>
-      <div className="divide-y divide-[var(--border-subtle)]">
-        {recent.map(entry => {
-          const cat = categories.find(c => c.id === entry.categoryId)
-          return (
-            <div key={entry.id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--bg-secondary)] transition-colors">
-              <div className="w-1.5 h-8 rounded-full flex-shrink-0" style={{ background: cat?.color || '#00C27C' }} />
-              <div className="w-28 flex-shrink-0">
-                <div className="text-xs font-semibold text-[var(--text-muted)]">{format(new Date(entry.date), 'MMM d, yyyy')}</div>
+
+      {/* Scrollable container with fade */}
+      <div className="relative">
+        <div
+          className="divide-y divide-[var(--border-subtle)] overflow-y-auto"
+          style={{ maxHeight, scrollbarWidth: 'none' }}
+        >
+          {recent.map(entry => {
+            const cat = categories.find(c => c.id === entry.categoryId)
+            return (
+              <div
+                key={entry.id}
+                className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--bg-secondary)] transition-colors group cursor-default"
+                style={{ height: ROW_HEIGHT }}
+              >
+                {/* Color bar */}
+                <div
+                  className="w-1 h-7 rounded-full flex-shrink-0 transition-all group-hover:h-9"
+                  style={{ background: cat?.color || 'var(--accent)' }}
+                />
+                {/* Date */}
+                <div className="w-24 flex-shrink-0">
+                  <div className="text-[11px] font-semibold text-[var(--text-muted)]">
+                    {format(new Date(entry.date), 'MMM d, yyyy')}
+                  </div>
+                </div>
+                {/* Name + note */}
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm text-[var(--text-primary)] truncate">{entry.sourceName}</div>
+                  {entry.note && <div className="text-[11px] text-[var(--text-muted)] truncate">{entry.note}</div>}
+                </div>
+                {/* Category pill */}
+                <div className="flex-shrink-0 w-28 flex justify-end">
+                  <span
+                    className="cat-pill"
+                    style={{ background: `${cat?.color}1A`, color: cat?.color || 'var(--accent)' }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cat?.color || 'var(--accent)' }} />
+                    {cat?.name || '—'}
+                  </span>
+                </div>
+                {/* Amount */}
+                <div className="text-right flex-shrink-0 w-28">
+                  <div className="font-bold text-sm text-[var(--text-primary)] tabular-nums">{fmt(entry.amountUSD)}</div>
+                  <div className="text-[10px] text-[var(--text-muted)]">
+                    {entry.amount.toLocaleString('en-ZA', { maximumFractionDigits: 0 })} {entry.currency}
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-[var(--text-primary)] truncate">{entry.sourceName}</div>
-                {entry.note && <div className="text-xs text-[var(--text-muted)] truncate">{entry.note}</div>}
-              </div>
-              <div className="w-24 flex-shrink-0">
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: `${cat?.color}22`, color: cat?.color }}>
-                  {cat?.name || '—'}
-                </span>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <div className="font-bold text-[var(--text-primary)]">{fmt(entry.amountUSD)}</div>
-                <div className="text-xs text-[var(--text-muted)]">{entry.amount.toLocaleString('en-ZA', { maximumFractionDigits: 0 })} {entry.currency}</div>
-              </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
+        {/* Bottom fade */}
+        {recent.length > VISIBLE_ROWS && (
+          <div
+            className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none"
+            style={{ background: 'linear-gradient(to bottom, transparent, var(--surface))' }}
+          />
+        )}
       </div>
     </GlassCard>
   )
@@ -249,19 +308,26 @@ function MonthDrillDown({ month, categories, entries, fmt, onBack }: {
 
   return (
     <div className="page-scroll">
-      <div className="p-8 space-y-6 page-enter">
+      <div className="p-8 space-y-5 page-enter">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="glass-sm rounded-xl px-4 py-2 text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-            ‹ Back
+          <button
+            onClick={onBack}
+            className="glass-sm rounded-xl px-4 py-2 text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5 hover:bg-[var(--bg-secondary)] transition-all cursor-pointer"
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M15 18l-6-6 6-6" strokeLinecap="round" /></svg>
+            Back
           </button>
-          <h2 className="text-xl font-bold text-[var(--text-primary)]">{format(month, 'MMMM yyyy')}</h2>
+          <div>
+            <h2 className="text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">{format(month, 'MMMM yyyy')}</h2>
+            <p className="text-sm text-[var(--text-muted)]">{monthEntries.length} entries</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
           <GlassCard>
             <div className="label">TOTAL INCOME</div>
-            <div className="hero-number mt-2 text-3xl">{fmt(total)}</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">{monthEntries.length} entries</div>
+            <div className="mt-2 text-3xl font-extrabold text-[var(--text-primary)] tracking-tight leading-none">{fmt(total)}</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1.5">{monthEntries.length} entries</div>
           </GlassCard>
           {catBreakdown.slice(0, 2).map(cat => (
             <GlassCard key={cat.id}>
@@ -269,8 +335,8 @@ function MonthDrillDown({ month, categories, entries, fmt, onBack }: {
                 <div className="w-2 h-2 rounded-full" style={{ background: cat.color }} />
                 <div className="label">{cat.name.toUpperCase()}</div>
               </div>
-              <div className="hero-number mt-1 text-3xl">{fmt(cat.total)}</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1">{total > 0 ? ((cat.total / total) * 100).toFixed(1) : 0}% of total</div>
+              <div className="mt-1 text-3xl font-extrabold text-[var(--text-primary)] tracking-tight leading-none">{fmt(cat.total)}</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5">{total > 0 ? ((cat.total / total) * 100).toFixed(1) : 0}% of total</div>
             </GlassCard>
           ))}
         </div>
@@ -292,29 +358,32 @@ function MonthDrillDown({ month, categories, entries, fmt, onBack }: {
           </GlassCard>
 
           <GlassCard className="col-span-3" noPadding>
-            <div className="flex items-center gap-2 px-6 pt-4 pb-3 border-b border-[var(--border-subtle)]">
-              <button onClick={() => setSelectedCatId(null)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${!selectedCatId ? 'bg-[#00C27C] text-white' : 'glass-sm text-[var(--text-muted)]'}`}>All</button>
+            <div className="flex items-center gap-2 px-6 pt-4 pb-3 border-b border-[var(--border-subtle)] flex-wrap">
+              <button
+                onClick={() => setSelectedCatId(null)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${!selectedCatId ? 'bg-[var(--accent)] text-white' : 'glass-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+              >All</button>
               {catBreakdown.map(cat => (
                 <button key={cat.id} onClick={() => setSelectedCatId(cat.id === selectedCatId ? null : cat.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${selectedCatId === cat.id ? 'text-white' : 'glass-sm text-[var(--text-muted)]'}`}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${selectedCatId === cat.id ? 'text-white' : 'glass-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                   style={selectedCatId === cat.id ? { background: cat.color } : {}}>
                   {cat.name}
                 </button>
               ))}
             </div>
-            <div className="divide-y divide-[var(--border-subtle)] max-h-72 overflow-y-auto">
+            <div className="divide-y divide-[var(--border-subtle)] max-h-72 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
               {filteredEntries.sort((a, b) => b.date - a.date).map(entry => {
                 const cat = categories.find(c => c.id === entry.categoryId)
                 return (
                   <div key={entry.id} className="flex items-center gap-4 px-6 py-3 hover:bg-[var(--bg-secondary)] transition-colors">
-                    <div className="w-1.5 h-6 rounded-full flex-shrink-0" style={{ background: cat?.color || '#00C27C' }} />
+                    <div className="w-1 h-6 rounded-full flex-shrink-0" style={{ background: cat?.color || 'var(--accent)' }} />
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm text-[var(--text-primary)] truncate">{entry.sourceName}</div>
-                      {entry.note && <div className="text-xs text-[var(--text-muted)]">{entry.note}</div>}
+                      {entry.note && <div className="text-[11px] text-[var(--text-muted)]">{entry.note}</div>}
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <div className="font-bold text-sm text-[var(--text-primary)]">{fmt(entry.amountUSD)}</div>
-                      <div className="text-xs text-[var(--text-muted)]">{format(new Date(entry.date), 'MMM d')}</div>
+                      <div className="font-bold text-sm text-[var(--text-primary)] tabular-nums">{fmt(entry.amountUSD)}</div>
+                      <div className="text-[11px] text-[var(--text-muted)]">{format(new Date(entry.date), 'MMM d')}</div>
                     </div>
                   </div>
                 )

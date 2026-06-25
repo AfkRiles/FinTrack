@@ -24,6 +24,19 @@ interface AddIncomeSheetProps {
 
 const CURRENCIES = ['ZAR', 'USD', 'USDT', 'USDC', 'ETH', 'SOL']
 
+// Premium color palette for new categories
+const PREMIUM_COLORS = ['#0D9488', '#4F46E5', '#D97706', '#2563EB', '#DC2626', '#7C3AED', '#0891B2']
+
+// Input style for dark glass modal
+const inputStyle = {
+  background: 'rgba(255,255,255,0.07)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  color: '#F9FAFB',
+  borderRadius: '12px',
+  outline: 'none',
+  transition: 'border-color 0.15s ease',
+}
+
 export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSaved }: AddIncomeSheetProps) {
   const { fxRate } = useAppStore()
   const [categories, setCategories] = useState<Category[]>([])
@@ -60,8 +73,7 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
 
   const handleAddCategory = async () => {
     if (!newCategory.trim()) return
-    const COLORS = ['#00C27C', '#FF4D8F', '#9364FF', '#00BFFF', '#FF8C42', '#FFD700']
-    const color = COLORS[categories.length % COLORS.length]
+    const color = PREMIUM_COLORS[categories.length % PREMIUM_COLORS.length]
     const cat: Category = {
       id: crypto.randomUUID(),
       name: newCategory.trim(),
@@ -83,11 +95,9 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
       const rate = fxRate?.usdToZar || (await ensureFXRate())
       const raw = parseFloat(amount)
 
-      // Convert to USD as base
       let amountUSD = raw
       if (currency === 'ZAR') amountUSD = raw / rate
       else if (currency === 'USDT' || currency === 'USDC') amountUSD = raw
-      // For other currencies (ETH, SOL) we'd need crypto prices — store as USD for now
 
       const amountZAR = amountUSD * rate
 
@@ -116,49 +126,53 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title={editEntry ? 'Edit Entry' : 'Add Income'} tall>
-      <div className="space-y-4 pb-4">
+      <div className="space-y-5 pb-2">
 
         {/* Category */}
         <div>
-          <label className="label block mb-2">Category</label>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-2.5">Category</div>
           <div className="flex flex-wrap gap-2">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setCategoryId(cat.id)}
-                className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${
-                  categoryId === cat.id
-                    ? 'text-white border-transparent'
-                    : 'text-[var(--text-secondary)] border-[var(--border-subtle)]'
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  categoryId === cat.id ? 'text-white' : 'text-[rgba(255,255,255,0.55)] hover:text-white'
                 }`}
-                style={categoryId === cat.id ? { background: cat.color, borderColor: cat.color } : {}}
+                style={
+                  categoryId === cat.id
+                    ? { background: cat.color, boxShadow: `0 4px 16px ${cat.color}44` }
+                    : { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)' }
+                }
               >
-                <span
-                  className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
-                  style={{ background: cat.color }}
-                />
+                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" style={{ background: cat.color }} />
                 {cat.name}
               </button>
             ))}
             <button
               onClick={() => setShowNewCat(!showNewCat)}
-              className="px-3 py-1.5 rounded-full text-sm font-semibold text-[#00C27C] border border-[#00C27C]/30"
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold text-[rgba(255,255,255,0.55)] hover:text-white transition-all cursor-pointer"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}
             >
               + New
             </button>
           </div>
           {showNewCat && (
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-2 mt-3">
               <input
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder="Category name"
-                className="flex-1 bg-[var(--bg-secondary)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] outline-none border border-[var(--border-subtle)] focus:border-[#00C27C]"
+                className="flex-1 px-3 py-2.5 text-sm"
+                style={inputStyle}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                onFocus={e => (e.target.style.borderColor = 'rgba(16,185,129,0.6)')}
+                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
               />
               <button
                 onClick={handleAddCategory}
-                className="px-4 py-2 bg-[#00C27C] text-white rounded-xl text-sm font-semibold"
+                className="px-4 py-2.5 text-white text-sm font-bold rounded-xl cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}
               >
                 Add
               </button>
@@ -168,23 +182,27 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
 
         {/* Amount + Currency */}
         <div>
-          <label className="label block mb-2">Amount</label>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-2.5">Amount</div>
           <div className="flex gap-2">
             <input
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="flex-1 bg-[var(--bg-secondary)] rounded-xl px-4 py-3 text-lg font-bold text-[var(--text-primary)] outline-none border border-[var(--border-subtle)] focus:border-[#00C27C]"
+              className="flex-1 px-4 py-3.5 text-xl font-bold"
+              style={inputStyle}
               inputMode="decimal"
+              onFocus={e => (e.target.style.borderColor = 'rgba(16,185,129,0.6)')}
+              onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
             />
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="bg-[var(--bg-secondary)] rounded-xl px-3 py-3 text-sm font-bold text-[var(--text-primary)] outline-none border border-[var(--border-subtle)] focus:border-[#00C27C]"
+              className="px-3 py-3.5 text-sm font-bold cursor-pointer"
+              style={{ ...inputStyle, minWidth: 80 }}
             >
               {CURRENCIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c} value={c} style={{ background: '#14141E', color: '#F9FAFB' }}>{c}</option>
               ))}
             </select>
           </div>
@@ -192,35 +210,44 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
 
         {/* Date */}
         <div>
-          <label className="label block mb-2">Date</label>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-2.5">Date</div>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-[var(--bg-secondary)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] outline-none border border-[var(--border-subtle)] focus:border-[#00C27C]"
+            className="w-full px-4 py-3.5 text-sm"
+            style={{ ...inputStyle, colorScheme: 'dark' }}
+            onFocus={e => (e.target.style.borderColor = 'rgba(16,185,129,0.6)')}
+            onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
           />
         </div>
 
         {/* Source name */}
         <div>
-          <label className="label block mb-2">Client / Source</label>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-2.5">Client / Source</div>
           <input
             value={sourceName}
             onChange={(e) => setSourceName(e.target.value)}
             placeholder="e.g. Acme Corp, Airdrop XYZ"
-            className="w-full bg-[var(--bg-secondary)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] outline-none border border-[var(--border-subtle)] focus:border-[#00C27C]"
+            className="w-full px-4 py-3.5 text-sm"
+            style={inputStyle}
+            onFocus={e => (e.target.style.borderColor = 'rgba(16,185,129,0.6)')}
+            onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
           />
         </div>
 
         {/* Note */}
         <div>
-          <label className="label block mb-2">Note (optional)</label>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-2.5">Note <span className="normal-case font-normal">(optional)</span></div>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Any details..."
             rows={2}
-            className="w-full bg-[var(--bg-secondary)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] outline-none border border-[var(--border-subtle)] focus:border-[#00C27C] resize-none"
+            className="w-full px-4 py-3.5 text-sm resize-none"
+            style={inputStyle}
+            onFocus={e => (e.target.style.borderColor = 'rgba(16,185,129,0.6)')}
+            onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
           />
         </div>
 
@@ -228,13 +255,16 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
         <button
           onClick={handleSave}
           disabled={!canSave || saving}
-          className={`w-full py-4 rounded-2xl text-base font-bold transition-all ${
+          className="w-full py-4 rounded-2xl text-base font-bold transition-all cursor-pointer"
+          style={
             canSave
-              ? 'bg-[#00C27C] text-white shadow-[0_4px_20px_rgba(0,194,124,0.35)]'
-              : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] cursor-not-allowed'
-          }`}
+              ? { background: 'linear-gradient(135deg, #10B981, #059669)', color: '#fff', boxShadow: '0 4px 20px rgba(5,150,105,0.35)', transform: 'translateY(0)' }
+              : { background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.3)', cursor: 'not-allowed' }
+          }
+          onMouseEnter={e => { if (canSave) (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
         >
-          {saving ? 'Saving...' : editEntry ? 'Save Changes' : 'Add Entry'}
+          {saving ? 'Saving…' : editEntry ? 'Save Changes' : 'Add Entry'}
         </button>
       </div>
     </BottomSheet>

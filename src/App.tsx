@@ -5,7 +5,7 @@ import { IncomePage } from './pages/Income'
 import { NetWorthPage } from './pages/NetWorth'
 import { StatsPage } from './pages/Stats'
 import { SettingsModal } from './pages/Settings'
-import { seedDefaultCategories } from './lib/db'
+import { seedDefaultCategories, migrateCategories } from './lib/db'
 import { seedImportedData } from './lib/seedData'
 import { ensureFXRate } from './lib/fx'
 
@@ -40,7 +40,7 @@ export default function App() {
     Promise.all([
       seedDefaultCategories(),
       seedImportedData(),
-    ]).then(() => setMounted(true))
+    ]).then(() => migrateCategories()).then(() => setMounted(true))
     ensureFXRate().then(rate => setFXRate({ usdToZar: rate, fetchedAt: Date.now() }))
   }, [])
 
@@ -66,28 +66,11 @@ export default function App() {
       <Sidebar onOpenSettings={() => setSettingsOpen(true)} />
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden flex flex-col relative z-10">
-        {/* Top bar */}
-        <header className="flex-shrink-0 flex items-center justify-between px-8 py-4 border-b border-[var(--border)]">
-          <div>
-            <h1 className="text-xl font-bold text-[var(--text-primary)]">
-              {activeTab === 'income' && 'Income Dashboard'}
-              {activeTab === 'networth' && 'Net Worth'}
-              {activeTab === 'stats' && 'Analytics'}
-            </h1>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              {new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
-          </div>
-        </header>
-
-        {/* Page content */}
-        <div className="flex-1 overflow-hidden">
-          <div key={activeTab} className="h-full page-enter">
-            {activeTab === 'income' && <IncomePage />}
-            {activeTab === 'networth' && <NetWorthPage />}
-            {activeTab === 'stats' && <StatsPage />}
-          </div>
+      <main className="flex-1 overflow-hidden relative z-10">
+        <div key={activeTab} className="h-full page-enter">
+          {activeTab === 'income' && <IncomePage />}
+          {activeTab === 'networth' && <NetWorthPage />}
+          {activeTab === 'stats' && <StatsPage />}
         </div>
       </main>
 

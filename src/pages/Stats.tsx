@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { subMonths, format } from 'date-fns'
 import { GlassCard } from '../components/ui/GlassCard'
-import { CurrencyToggle } from '../components/ui/CurrencyToggle'
 import { db } from '../lib/db'
 import { useAppStore } from '../store/useAppStore'
 import { formatZAR, formatUSD } from '../lib/fx'
@@ -76,8 +75,10 @@ export function StatsPage() {
     <div className="page-scroll">
       <div className="p-8 space-y-6 page-enter">
 
-        <div className="flex items-center justify-between">
-          <CurrencyToggle />
+        {/* Page header */}
+        <div>
+          <h1 className="text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">Analytics</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-0.5">Income trends and client breakdown</p>
         </div>
 
         {/* Growth + concentration row */}
@@ -92,7 +93,7 @@ export function StatsPage() {
               </div>
               <div>
                 <div className="text-xs text-[var(--text-muted)] mb-1">vs Last Month</div>
-                <div className={`font-bold text-xl ${momChange !== null ? (momChange >= 0 ? 'text-[#00C27C]' : 'text-red-400') : 'text-[var(--text-muted)]'}`}>
+                <div className={`font-bold text-xl ${momChange !== null ? (momChange >= 0 ? 'text-[var(--accent)]' : 'text-red-400') : 'text-[var(--text-muted)]'}`}>
                   {momChange !== null ? `${momChange >= 0 ? '+' : ''}${momChange.toFixed(1)}%` : '—'}
                 </div>
               </div>
@@ -119,7 +120,7 @@ export function StatsPage() {
                       <div key={year} className="flex items-center gap-3">
                         <div className="w-10 text-xs font-semibold text-[var(--text-muted)]">{year}</div>
                         <div className="flex-1 h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-[#00C27C] transition-all" style={{ width: `${(total / maxYear) * 100}%` }} />
+                          <div className="h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${(total / maxYear) * 100}%` }} />
                         </div>
                         <div className="w-28 text-right text-sm font-bold text-[var(--text-primary)]">{fmt(total)}</div>
                       </div>
@@ -140,7 +141,7 @@ export function StatsPage() {
                 <div className="font-bold text-[var(--text-primary)] mt-2">{topClient.name}</div>
                 <div className="mt-4 h-2 rounded-full bg-[var(--bg-secondary)] overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${concentration > 70 ? 'bg-red-400' : concentration > 50 ? 'bg-yellow-400' : 'bg-[#00C27C]'}`}
+                    className={`h-full rounded-full transition-all ${concentration > 70 ? 'bg-red-400' : concentration > 50 ? 'bg-yellow-400' : 'bg-[var(--accent)]'}`}
                     style={{ width: `${Math.min(concentration, 100)}%` }}
                   />
                 </div>
@@ -177,7 +178,7 @@ export function StatsPage() {
                 </div>
                 <div className="w-40 hidden md:block">
                   <div className="h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-[#00C27C]" style={{ width: `${totalAll > 0 ? (client.total / totalAll) * 100 : 0}%` }} />
+                    <div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${totalAll > 0 ? (client.total / totalAll) * 100 : 0}%` }} />
                   </div>
                   <div className="text-[10px] text-[var(--text-muted)] mt-1">{totalAll > 0 ? ((client.total / totalAll) * 100).toFixed(1) : 0}% of total</div>
                 </div>
