@@ -37,7 +37,7 @@ export interface CryptoHolding {
 export interface Wallet {
   id: string
   address: string
-  chain: 'solana' | 'evm'
+  chain: string // 'bitcoin' | 'ethereum' | 'solana' | 'xrp' | 'usdc-eth' | 'cardano' | 'avalanche' | 'sui'
   label: string
   lastSyncedAt?: number
 }

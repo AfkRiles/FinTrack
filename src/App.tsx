@@ -8,6 +8,7 @@ import { SettingsModal } from './pages/Settings'
 import { seedDefaultCategories, migrateCategories } from './lib/db'
 import { seedImportedData } from './lib/seedData'
 import { ensureFXRate } from './lib/fx'
+import { seedWallets } from './lib/walletSync'
 
 export default function App() {
   const { activeTab, theme, setFXRate } = useAppStore()
@@ -40,6 +41,7 @@ export default function App() {
     Promise.all([
       seedDefaultCategories(),
       seedImportedData(),
+      seedWallets(),
     ]).then(() => migrateCategories()).then(() => setMounted(true))
     ensureFXRate().then(rate => setFXRate({ usdToZar: rate, fetchedAt: Date.now() }))
   }, [])
