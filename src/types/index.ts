@@ -37,8 +37,9 @@ export interface CryptoHolding {
 export interface Wallet {
   id: string
   address: string
-  chain: string // 'bitcoin' | 'ethereum' | 'solana' | 'xrp' | 'usdc-eth' | 'cardano' | 'avalanche' | 'sui'
+  chain: string
   label: string
+  zpub?: string        // BTC only: zpub enables full HD wallet scanning (auto-discovers all addresses)
   lastSyncedAt?: number
 }
 

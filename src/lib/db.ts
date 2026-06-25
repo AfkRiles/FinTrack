@@ -29,6 +29,10 @@ export class FinTrackDB extends Dexie {
       cashHoldings: 'id, label',
       netWorthSnapshots: 'id, date',
     })
+    // v2: wallets gains optional zpub field for HD wallet scanning
+    this.version(2).stores({
+      wallets: 'id, chain, address, zpub',
+    })
   }
 }
 

@@ -1,3 +1,7 @@
+import { HDKey } from '@scure/bip32'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { ripemd160 } from '@noble/hashes/legacy.js'
+import { bech32 } from '@scure/base'
 import { db } from './db'
 import { fetchPrices } from './prices'
 
@@ -28,7 +32,6 @@ export interface WalletSyncResult {
   syncedAt: number
 }
 
-// Map tokenId → chain for loading state lookups in UI
 export const TOKEN_TO_CHAIN: Record<string, WalletChain> = {
   'bitcoin':     'bitcoin',
   'ethereum':    'ethereum',
@@ -40,7 +43,6 @@ export const TOKEN_TO_CHAIN: Record<string, WalletChain> = {
   'usd-coin':    'usdc-eth',
 }
 
-// Visual metadata per chain — used by the Crypto section rows
 export const CHAIN_META: Record<WalletChain, { icon: string; color: string }> = {
   bitcoin:    { icon: '₿',  color: '#F7931A' },
   ethereum:   { icon: 'Ξ',  color: '#627EEA' },
@@ -50,6 +52,125 @@ export const CHAIN_META: Record<WalletChain, { icon: string; color: string }> = 
   cardano:    { icon: '₳',  color: '#0033AD' },
   avalanche:  { icon: '▲',  color: '#E84142' },
   sui:        { icon: '●',  color: '#6FBCF0' },
+}
+
+// ─── BTC: known addresses (receive + change) ──────────────────────────────────
+// These are the fallback when no zpub is configured.
+// Add new change addresses here whenever you spend BTC and get change.
+// Better long-term: set a zpub in Settings → the app discovers all addresses automatically.
+const BTC_KNOWN_ADDRESSES = [
+  'bc1qv5pfcql3hkef5afzpjcf6693qhghk7fwgfj38d', // primary receive
+  'bc1q5c4k29jxdnanvgdh3d2mkd8yukvc9vpm5xy',     // change address
+  'bc1qarsvw0emhylswyap3agwc6rrtp6sxk8pnu1',     // change address
+]
+
+// ─── BTC: zpub / xpub scanning ───────────────────────────────────────────────
+// zpub version bytes (BIP84 native SegWit mainnet)
+const ZPUB_VERSIONS = { public: 0x04b24746, private: 0x04b2430c }
+
+function hash160(data: Uint8Array): Uint8Array {
+  return ripemd160(sha256(data))
+}
+
+/** Derives the native SegWit (bc1q…) address from a compressed public key */
+function pubkeyToP2WPKH(pubkey: Uint8Array): string {
+  const pkh = hash160(pubkey)
+  const dataWords = bech32.toWords(pkh)           // 8-bit → 5-bit
+  const words = new Uint8Array(dataWords.length + 1)
+  words[0] = 0                                    // witness version 0
+  words.set(dataWords, 1)
+  return bech32.encode('bc', words)               // "bc1q…"
+}
+
+/** Fetches confirmed balance for a single BTC address */
+async function fetchBTCSingle(address: string): Promise<number> {
+  const endpoints = [
+    `https://mempool.space/api/address/${address}`,
+    `https://blockstream.info/api/address/${address}`,
+  ]
+  let last: Error = new Error('BTC address fetch failed')
+  for (const url of endpoints) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(10000) })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const d = await r.json()
+      const c = d.chain_stats
+      return (c.funded_txo_sum - c.spent_txo_sum) / 1e8
+    } catch (e) {
+      last = e instanceof Error ? e : new Error(String(e))
+    }
+  }
+  throw last
+}
+
+/**
+ * Scans one branch of an HD key (receive = 0, change = 1) with BIP44 gap limit.
+ * Fetches up to BATCH_SIZE addresses in parallel per round for speed.
+ */
+async function scanZpubBranch(branch: HDKey, gapLimit = 20): Promise<number> {
+  const BATCH = 10
+  let total = 0
+  let gap = 0
+  let idx = 0
+
+  while (gap < gapLimit) {
+    // Derive a batch of addresses
+    const addrs: string[] = []
+    for (let j = 0; j < BATCH; j++) {
+      const child = branch.deriveChild(idx + j)
+      addrs.push(pubkeyToP2WPKH(child.publicKey!))
+    }
+
+    // Fetch all in parallel
+    const results = await Promise.all(
+      addrs.map(addr =>
+        fetch(`https://mempool.space/api/address/${addr}`, { signal: AbortSignal.timeout(10000) })
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null)
+      )
+    )
+
+    for (const d of results) {
+      const txs = d?.chain_stats?.tx_count ?? 0
+      if (txs === 0) {
+        gap++
+        if (gap >= gapLimit) break
+      } else {
+        gap = 0
+        total += (d.chain_stats.funded_txo_sum - d.chain_stats.spent_txo_sum) / 1e8
+      }
+    }
+
+    idx += BATCH
+  }
+
+  return total
+}
+
+/**
+ * Full zpub scan — derives all receive (m/…/0/n) and change (m/…/1/n) addresses
+ * up to the BIP44 gap limit, fetches balances in parallel batches.
+ * Both branches scan concurrently so total time ≈ max(receive_time, change_time).
+ */
+async function fetchBTCFromZpub(zpub: string): Promise<number> {
+  const root = HDKey.fromExtendedKey(zpub, ZPUB_VERSIONS)
+  const [receive, change] = await Promise.all([
+    scanZpubBranch(root.deriveChild(0)), // external / receive
+    scanZpubBranch(root.deriveChild(1)), // internal / change
+  ])
+  return receive + change
+}
+
+// ─── BTC main fetcher ─────────────────────────────────────────────────────────
+async function fetchBTC(_primaryAddress: string): Promise<number> {
+  // Check if user has configured a zpub in Settings
+  const btcWallet = await db.wallets.where('chain').equals('bitcoin').first()
+  if (btcWallet?.zpub) {
+    return fetchBTCFromZpub(btcWallet.zpub)
+  }
+  // Fall back to fetching all known addresses in parallel
+  const balances = await Promise.all(BTC_KNOWN_ADDRESSES.map(fetchBTCSingle))
+  return balances.reduce((s, b) => s + b, 0)
 }
 
 // ─── RPC helpers ──────────────────────────────────────────────────────────────
@@ -93,40 +214,14 @@ async function evmFallback(rpcs: string[], method: string, params: unknown[]): P
   throw last
 }
 
-// ─── Per-chain balance fetchers ───────────────────────────────────────────────
-
-/** BTC: confirmed balance only (chain_stats). mempool.space first, blockstream fallback. */
-async function fetchBTC(address: string): Promise<number> {
-  const endpoints = [
-    'https://mempool.space/api',
-    'https://blockstream.info/api',
-  ]
-  let last: Error = new Error('BTC fetch failed')
-  for (const base of endpoints) {
-    try {
-      const r = await fetch(`${base}/address/${address}`, { signal: AbortSignal.timeout(10000) })
-      if (!r.ok) throw new Error(`HTTP ${r.status}`)
-      const d = await r.json()
-      const c = d.chain_stats
-      // Confirmed balance only — mempool txs are unspendable/unreliable
-      return (c.funded_txo_sum - c.spent_txo_sum) / 1e8
-    } catch (e) {
-      last = e instanceof Error ? e : new Error(String(e))
-    }
-  }
-  throw last
-}
-
-/** ETH native balance — tries 4 public RPCs */
 async function fetchETH(address: string): Promise<number> {
   const hex = await evmFallback(ETH_RPCS, 'eth_getBalance', [address, 'latest'])
   return Number(BigInt(hex)) / 1e18
 }
 
-/** USDC ERC-20 balance on Ethereum (6 decimals) */
 async function fetchUSDC(address: string): Promise<number> {
   const padded = '000000000000000000000000' + address.replace('0x', '').toLowerCase()
-  const data   = '0x70a08231' + padded // balanceOf(address)
+  const data   = '0x70a08231' + padded
   const hex    = await evmFallback(ETH_RPCS, 'eth_call', [{ to: USDC_CONTRACT, data }, 'latest'])
   if (!hex || hex === '0x') return 0
   const raw = hex.replace('0x', '')
@@ -134,7 +229,6 @@ async function fetchUSDC(address: string): Promise<number> {
   return Number(BigInt('0x' + raw)) / 1e6
 }
 
-/** SOL balance — tries official + publicnode RPCs */
 async function fetchSOL(address: string): Promise<number> {
   let last: Error = new Error('No SOL RPC')
   for (const rpc of SOL_RPCS) {
@@ -156,7 +250,6 @@ async function fetchSOL(address: string): Promise<number> {
   throw last
 }
 
-/** XRP balance from xrplcluster */
 async function fetchXRP(address: string): Promise<number> {
   const r = await fetch('https://xrplcluster.com', {
     method: 'POST',
@@ -175,7 +268,6 @@ async function fetchXRP(address: string): Promise<number> {
   return parseInt(bal) / 1e6
 }
 
-/** ADA balance via Koios REST API */
 async function fetchADA(address: string): Promise<number> {
   const r = await fetch('https://api.koios.rest/api/v1/address_info', {
     method: 'POST',
@@ -191,13 +283,11 @@ async function fetchADA(address: string): Promise<number> {
   return parseInt(bal) / 1e6
 }
 
-/** AVAX C-Chain native balance — tries 3 public RPCs */
 async function fetchAVAX(address: string): Promise<number> {
   const hex = await evmFallback(AVAX_RPCS, 'eth_getBalance', [address, 'latest'])
   return Number(BigInt(hex)) / 1e18
 }
 
-/** SUI native balance */
 async function fetchSUI(address: string): Promise<number> {
   const r = await fetch('https://fullnode.mainnet.sui.io', {
     method: 'POST',
@@ -242,7 +332,21 @@ export async function seedWallets() {
   )
 }
 
-// ─── Main sync: fetch all balances in parallel, upsert into cryptoHoldings ────
+/** Save or clear the BTC zpub. Pass null to revert to manual addresses. */
+export async function saveBTCZpub(zpub: string | null) {
+  const btcWallet = await db.wallets.where('chain').equals('bitcoin').first()
+  if (btcWallet) {
+    await db.wallets.update(btcWallet.id, { zpub: zpub ?? undefined } as object)
+  }
+}
+
+/** Get the currently saved BTC zpub (null if not set) */
+export async function getBTCZpub(): Promise<string | null> {
+  const btcWallet = await db.wallets.where('chain').equals('bitcoin').first()
+  return (btcWallet as { zpub?: string })?.zpub ?? null
+}
+
+// ─── Main sync ────────────────────────────────────────────────────────────────
 export async function syncWallets(
   onProgress?: (chain: WalletChain, result: WalletSyncResult | null) => void
 ): Promise<WalletSyncResult[]> {
@@ -250,7 +354,7 @@ export async function syncWallets(
 
   const settled = await Promise.allSettled(
     WALLET_CONFIGS.map(async (w): Promise<WalletSyncResult> => {
-      onProgress?.(w.chain, null) // signal "loading"
+      onProgress?.(w.chain, null)
       try {
         const balance  = await FETCHERS[w.chain](w.address)
         const priceUSD = prices[w.tokenId] ?? 0
@@ -262,7 +366,6 @@ export async function syncWallets(
         }
         onProgress?.(w.chain, result)
 
-        // Upsert holding (always, so 0-balance entries clear stale data)
         const existing = await db.cryptoHoldings
           .where('tokenId').equals(w.tokenId)
           .and(h => h.source === 'wallet')

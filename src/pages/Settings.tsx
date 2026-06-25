@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { GlassCard } from '../components/ui/GlassCard'
 import { BottomSheet } from '../components/ui/BottomSheet'
 import { db } from '../lib/db'
 import { useAppStore } from '../store/useAppStore'
+import { saveBTCZpub, getBTCZpub } from '../lib/walletSync'
 import type { Theme } from '../types'
 
 interface SettingsModalProps {
@@ -15,6 +16,42 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { theme, setTheme } = useAppStore()
   const [exporting, setExporting] = useState(false)
   const categories = useLiveQuery(() => db.categories.orderBy('createdAt').toArray(), [])
+
+  // BTC zpub configuration
+  const [zpubInput,   setZpubInput]   = useState('')
+  const [currentZpub, setCurrentZpub] = useState<string | null>(null)
+  const [zpubSaving,  setZpubSaving]  = useState(false)
+  const [zpubMsg,     setZpubMsg]     = useState<{ text: string; ok: boolean } | null>(null)
+
+  useEffect(() => {
+    if (isOpen) getBTCZpub().then(setCurrentZpub)
+  }, [isOpen])
+
+  const handleSaveZpub = async () => {
+    const val = zpubInput.trim()
+    if (!val.startsWith('zpub') && !val.startsWith('xpub')) {
+      setZpubMsg({ text: 'Must start with zpub (native SegWit) or xpub', ok: false })
+      return
+    }
+    setZpubSaving(true)
+    setZpubMsg(null)
+    try {
+      await saveBTCZpub(val)
+      setCurrentZpub(val)
+      setZpubInput('')
+      setZpubMsg({ text: 'Saved — next sync will scan all addresses automatically', ok: true })
+    } catch {
+      setZpubMsg({ text: 'Failed to save', ok: false })
+    } finally {
+      setZpubSaving(false)
+    }
+  }
+
+  const handleClearZpub = async () => {
+    await saveBTCZpub(null)
+    setCurrentZpub(null)
+    setZpubMsg({ text: 'Cleared — using manual address list', ok: true })
+  }
 
   const handleExportCSV = async () => {
     setExporting(true)
@@ -79,6 +116,71 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title="Settings" tall>
       <div className="space-y-5 pb-4">
+
+        {/* Bitcoin Wallet */}
+        <div>
+          <div className="label mb-2">BITCOIN WALLET (BTC)</div>
+          <GlassCard small className="space-y-3">
+            {/* Current mode */}
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-[var(--text-primary)]">
+                  {currentZpub ? 'HD Wallet (zpub)' : 'Manual addresses (3)'}
+                </div>
+                <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                  {currentZpub
+                    ? `${currentZpub.slice(0, 14)}…${currentZpub.slice(-6)} · auto-discovers all addresses`
+                    : '3 addresses hardcoded — add zpub to track all future change addresses'}
+                </div>
+              </div>
+              {currentZpub && (
+                <button
+                  onClick={handleClearZpub}
+                  className="text-xs text-red-400 font-semibold px-2 py-1 rounded-lg hover:bg-red-400/10 transition-colors cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* zpub input */}
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-1.5">
+                {currentZpub ? 'Replace zpub' : 'Enter zpub or xpub'}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={zpubInput}
+                  onChange={e => { setZpubInput(e.target.value); setZpubMsg(null) }}
+                  placeholder="zpub6…"
+                  className="flex-1 rounded-xl px-3 py-2 text-xs font-mono bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+                  style={{ transition: 'border-color 0.15s' }}
+                />
+                <button
+                  onClick={handleSaveZpub}
+                  disabled={!zpubInput.trim() || zpubSaving}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}
+                >
+                  {zpubSaving ? '…' : 'Save'}
+                </button>
+              </div>
+            </div>
+
+            {/* Feedback message */}
+            {zpubMsg && (
+              <div className={`text-xs px-3 py-2 rounded-xl ${zpubMsg.ok ? 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-400/10' : 'text-red-500 bg-red-50 dark:text-red-400 dark:bg-red-400/10'}`}>
+                {zpubMsg.text}
+              </div>
+            )}
+
+            {/* Help text */}
+            <div className="text-[10px] text-[var(--text-faint)] leading-relaxed">
+              In Ledger Live → your Bitcoin account → wrench icon → "Export account" or "Advanced" to find your zpub.
+              The zpub is an <em>extended public key</em> — it reveals addresses but never private keys or the ability to spend.
+            </div>
+          </GlassCard>
+        </div>
 
         {/* Appearance */}
         <div>
