@@ -368,16 +368,18 @@ export async function syncWallets(
 
         const existing = await db.cryptoHoldings
           .where('tokenId').equals(w.tokenId)
-          .and(h => h.source === 'wallet')
+          .and(h => h.source === 'wallet' || h.source === 'wallet-manual')
           .first()
 
         if (existing) {
-          await db.cryptoHoldings.update(existing.id, {
-            quantity: balance,
+          // wallet-manual = user has manually set quantity; only update price, not balance
+          const update: Partial<typeof existing> = {
             lastPrice: priceUSD,
             lastPriceUpdated: Date.now(),
             walletId: w.address,
-          })
+          }
+          if (existing.source !== 'wallet-manual') update.quantity = balance
+          await db.cryptoHoldings.update(existing.id, update)
         } else {
           await db.cryptoHoldings.add({
             id: crypto.randomUUID(),

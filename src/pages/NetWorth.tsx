@@ -25,6 +25,21 @@ export function NetWorthPage() {
   const [editCash,   setEditCash]   = useState<CashHolding | undefined>()
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; type: 'crypto' | 'stocks' | 'cash'; name: string } | null>(null)
 
+  // Wallet balance manual-edit state
+  const [editWallet,  setEditWallet]  = useState<CryptoHolding | null>(null)
+  const [editWalletQty, setEditWalletQty] = useState('')
+  const [editWalletSaving, setEditWalletSaving] = useState(false)
+
+  const handleSaveWalletQty = async () => {
+    if (!editWallet) return
+    const qty = parseFloat(editWalletQty)
+    if (isNaN(qty) || qty < 0) return
+    setEditWalletSaving(true)
+    await db.cryptoHoldings.update(editWallet.id, { quantity: qty, source: 'wallet-manual' })
+    setEditWalletSaving(false)
+    setEditWallet(null)
+  }
+
   // Sync state
   const [syncing,         setSyncing]         = useState(false)
   const [syncLoadingSet,  setSyncLoadingSet]   = useState<Set<WalletChain>>(new Set())
@@ -56,11 +71,11 @@ export function NetWorthPage() {
     pct: `${grandTotal > 0 ? ((s.value / grandTotal) * 100).toFixed(1) : 0}%`,
   }))
 
-  // Split crypto holdings: wallet-synced vs manual, both sorted highest → lowest value
+  // Split crypto holdings: wallet-sourced vs pure manual, both sorted highest → lowest value
   const byValue = (a: CryptoHolding, b: CryptoHolding) =>
     (b.quantity * (b.lastPrice || 0)) - (a.quantity * (a.lastPrice || 0))
-  const walletHoldings = (cryptoHoldings || []).filter(h => h.source === 'wallet').sort(byValue)
-  const manualHoldings = (cryptoHoldings || []).filter(h => h.source !== 'wallet').sort(byValue)
+  const walletHoldings = (cryptoHoldings || []).filter(h => h.source === 'wallet' || h.source === 'wallet-manual').sort(byValue)
+  const manualHoldings = (cryptoHoldings || []).filter(h => h.source === 'manual').sort(byValue)
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -246,6 +261,7 @@ export function NetWorthPage() {
                       loading={isLoading}
                       error={error}
                       fmt={fmt}
+                      onEdit={() => { setEditWallet(h); setEditWalletQty(String(h.quantity)) }}
                     />
                   )
                 })}
@@ -333,6 +349,37 @@ export function NetWorthPage() {
       <AddStockSheet  isOpen={addStock}  onClose={() => { setAddStock(false);  setEditStock(undefined)  }} editHolding={editStock} />
       <AddCashSheet   isOpen={addCash}   onClose={() => { setAddCash(false);   setEditCash(undefined)   }} editHolding={editCash} />
 
+      {/* Wallet balance edit modal */}
+      {editWallet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }} onClick={() => setEditWallet(null)} />
+          <div className="relative modal-glass rounded-2xl p-6 w-full max-w-sm animate-[scaleIn_0.18s_ease-out]">
+            <div className="text-base font-bold text-white mb-1">Edit {editWallet.name} Balance</div>
+            <div className="text-xs text-[rgba(255,255,255,0.45)] mb-4">
+              Sync will keep your price updated but won't overwrite this quantity.
+            </div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-1.5">
+              Balance ({editWallet.symbol})
+            </div>
+            <input
+              type="number"
+              value={editWalletQty}
+              onChange={e => setEditWalletQty(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSaveWalletQty()}
+              autoFocus
+              className="w-full rounded-xl px-4 py-3 text-sm font-mono mb-4 outline-none"
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(16,185,129,0.5)', color: '#F9FAFB' }}
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setEditWallet(null)} className="flex-1 py-3 rounded-xl text-sm font-bold cursor-pointer" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.6)' }}>Cancel</button>
+              <button onClick={handleSaveWalletQty} disabled={editWalletSaving} className="flex-1 py-3 rounded-xl text-sm font-bold text-white cursor-pointer" style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}>
+                {editWalletSaving ? '…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete confirmation */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
@@ -354,11 +401,12 @@ export function NetWorthPage() {
 }
 
 // ── Wallet-synced holding row ─────────────────────────────────────────────────
-function WalletHoldingRow({ holding, loading, error, fmt }: {
+function WalletHoldingRow({ holding, loading, error, fmt, onEdit }: {
   holding: CryptoHolding
   loading: boolean
   error?: string
   fmt: (usd: number) => string
+  onEdit: () => void
 }) {
   const cfg  = WALLET_CONFIGS.find(w => w.tokenId === holding.tokenId)
   const meta = cfg ? CHAIN_META[cfg.chain] : null
@@ -367,7 +415,7 @@ function WalletHoldingRow({ holding, loading, error, fmt }: {
   const value = holding.quantity * (holding.lastPrice || 0)
 
   return (
-    <div className="flex items-center gap-4 px-6 py-4 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-secondary)] transition-colors">
+    <div className="flex items-center gap-4 px-6 py-4 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-secondary)] transition-colors group">
       {/* Chain icon */}
       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0"
         style={{ background: `${color}18`, color }}>
@@ -382,6 +430,9 @@ function WalletHoldingRow({ holding, loading, error, fmt }: {
             style={{ background: `${color}18`, color }}>
             {holding.symbol}
           </span>
+          {holding.source === 'wallet-manual' && (
+            <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">manual</span>
+          )}
           {error && !loading && (
             <span className="text-[9px] font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded-full">error</span>
           )}
@@ -390,6 +441,18 @@ function WalletHoldingRow({ holding, loading, error, fmt }: {
           {shortAddress(holding.walletId || '')}
         </div>
       </div>
+
+      {/* Edit button (hover) */}
+      <button
+        onClick={onEdit}
+        className="w-7 h-7 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0 hover:bg-[rgba(255,255,255,0.08)]"
+        title="Edit balance manually"
+      >
+        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
 
       {/* Value + balance */}
       <div className="text-right flex-shrink-0">

@@ -38,10 +38,10 @@ export class FinTrackDB extends Dexie {
 
 export const db = new FinTrackDB()
 
-// Premium color palette (replaces old neon colors)
+// Premium color palette
 const PREMIUM_CATEGORY_COLORS: Record<string, string> = {
-  'Clients':      '#0D9488', // deep teal
-  'Airdrops':     '#D97706', // amber gold
+  'Clients':      '#D97706', // amber — was Airdrops, now Clients
+  'Airdrops':     '#3B82F6', // blue
   'Angle Rounds': '#4F46E5', // royal indigo
 }
 
@@ -57,7 +57,23 @@ export async function seedDefaultCategories() {
   }
 }
 
-// Migrate existing categories to premium colors
+// Normalize income entry source names so duplicate spellings merge in Stats
+export async function normalizeSourceNames() {
+  const entries = await db.incomeEntries.toArray()
+  const normalize = (name: string): string => {
+    const l = name.toLowerCase().trim()
+    if (l.includes('canna'))   return 'Canna Sapiens'
+    if (l.includes('bullish')) return 'Bullish Sentiment'
+    if (l.includes('smiley'))  return 'Smiley Electric'
+    return name
+  }
+  const updates = entries
+    .filter(e => normalize(e.sourceName) !== e.sourceName)
+    .map(e => db.incomeEntries.update(e.id, { sourceName: normalize(e.sourceName) }))
+  await Promise.all(updates)
+}
+
+// Migrate existing categories to current colors
 export async function migrateCategories() {
   const cats = await db.categories.toArray()
   const updates: Promise<number>[] = []

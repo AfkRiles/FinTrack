@@ -28,7 +28,7 @@ export interface CryptoHolding {
   symbol: string
   name: string
   quantity: number
-  source: 'manual' | 'wallet'
+  source: 'manual' | 'wallet' | 'wallet-manual'  // wallet-manual = wallet-sourced but qty manually overridden
   walletId?: string
   lastPrice?: number
   lastPriceUpdated?: number
