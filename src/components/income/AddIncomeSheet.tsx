@@ -20,6 +20,7 @@ interface AddIncomeSheetProps {
     note?: string
   }
   onSaved?: () => void
+  onDeleted?: () => void
 }
 
 const CURRENCIES = ['ZAR', 'USD', 'USDT', 'USDC', 'ETH', 'SOL']
@@ -37,7 +38,7 @@ const inputStyle = {
   transition: 'border-color 0.15s ease',
 }
 
-export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSaved }: AddIncomeSheetProps) {
+export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSaved, onDeleted }: AddIncomeSheetProps) {
   const { fxRate } = useAppStore()
   const [categories, setCategories] = useState<Category[]>([])
   const [categoryId, setCategoryId] = useState('')
@@ -115,6 +116,20 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
           createdAt: Date.now(),
         })
       }
+      onSaved?.()
+      onClose()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!editEntry) return
+    if (!window.confirm('Delete this entry? This cannot be undone.')) return
+    setSaving(true)
+    try {
+      await db.incomeEntries.delete(editEntry.id)
+      onDeleted?.()
       onSaved?.()
       onClose()
     } finally {
@@ -266,6 +281,24 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
         >
           {saving ? 'Saving…' : editEntry ? 'Save Changes' : 'Add Entry'}
         </button>
+
+        {/* Delete button — only in edit mode */}
+        {editEntry && (
+          <button
+            onClick={handleDelete}
+            disabled={saving}
+            className="w-full py-3 rounded-2xl text-sm font-bold transition-all cursor-pointer"
+            style={{
+              background: 'rgba(239,68,68,0.12)',
+              color: '#F87171',
+              border: '1px solid rgba(239,68,68,0.20)',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.20)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.12)' }}
+          >
+            {saving ? 'Deleting…' : 'Delete Entry'}
+          </button>
+        )}
       </div>
     </BottomSheet>
   )

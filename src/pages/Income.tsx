@@ -7,14 +7,15 @@ import { BarChart } from '../components/ui/BarChart'
 import { AddIncomeSheet } from '../components/income/AddIncomeSheet'
 import { db } from '../lib/db'
 import { useAppStore } from '../store/useAppStore'
-import { ensureFXRate, formatZAR, formatUSD } from '../lib/fx'
+import { ensureFXRate, formatZAR, formatUSD, formatUSDFull, formatZARFull } from '../lib/fx'
 import type { Category, IncomeEntry } from '../types'
 
 export function IncomePage() {
   const { currency, fxRate, setFXRate } = useAppStore()
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [addOpen, setAddOpen] = useState(false)
-  const [prefillDate, setPrefillDate] = useState<Date | undefined>()
+  const [editEntry, setEditEntry] = useState<IncomeEntry | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number | null>(null)
   const [drillMonth, setDrillMonth] = useState<Date | null>(null)
 
@@ -30,8 +31,15 @@ export function IncomePage() {
   }, [])
 
   const rate = fxRate?.usdToZar || 18.5
+
+  // Abbreviated format for stat cards / bar charts
   const fmt = useCallback((usd: number) =>
     currency === 'ZAR' ? formatZAR(usd * rate) : formatUSD(usd),
+    [currency, rate])
+
+  // Full-precision format for individual entry rows
+  const fmtFull = useCallback((usd: number) =>
+    currency === 'ZAR' ? formatZARFull(usd * rate) : formatUSDFull(usd),
     [currency, rate])
 
   const now = new Date()
@@ -83,6 +91,15 @@ export function IncomePage() {
     return { label, value, color, fullLabel: `${MONTH_NAMES[i]} ${selectedYear}` }
   })
 
+  const handleOpenEdit = (entry: IncomeEntry) => {
+    setEditEntry(entry)
+    setEditOpen(true)
+  }
+  const handleCloseEdit = () => {
+    setEditOpen(false)
+    setEditEntry(null)
+  }
+
   if (drillMonth) {
     return (
       <MonthDrillDown
@@ -90,7 +107,9 @@ export function IncomePage() {
         categories={categories || []}
         entries={allEntries || []}
         fmt={fmt}
+        fmtFull={fmtFull}
         onBack={() => { setDrillMonth(null); setSelectedMonthIndex(null) }}
+        onEditEntry={handleOpenEdit}
       />
     )
   }
@@ -100,18 +119,33 @@ export function IncomePage() {
       <div className="p-8 space-y-5 page-enter">
 
         {/* Page header */}
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">Dashboard</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-0.5">{format(now, 'EEEE, MMMM d, yyyy')}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">Dashboard</h1>
+            <p className="text-sm text-[var(--text-muted)] mt-0.5">{format(now, 'EEEE, MMMM d, yyyy')}</p>
+          </div>
+          {/* Add Entry button */}
+          <button
+            onClick={() => setAddOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white transition-all cursor-pointer"
+            style={{ background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 4px 16px rgba(5,150,105,0.3)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+            </svg>
+            Add Entry
+          </button>
         </div>
 
         {/* Stat cards row */}
         <div className="grid grid-cols-4 gap-4">
-          {/* This Month — primary hero card */}
+          {/* This Month — clicking shows current month detail */}
           <div
             className="glass rounded-3xl p-5 card-hover cursor-pointer"
             style={{ background: 'linear-gradient(135deg, #10B981, #059669)', border: '1px solid rgba(255,255,255,0.12)' }}
-            onClick={() => { setPrefillDate(now); setAddOpen(true) }}
+            onClick={() => { setDrillMonth(startOfMonth(now)); setSelectedMonthIndex(now.getMonth()) }}
           >
             <div className="label text-white/60">THIS MONTH</div>
             <div className="mt-2 text-3xl font-extrabold text-white tracking-tight leading-none">
@@ -201,23 +235,45 @@ export function IncomePage() {
           </GlassCard>
         </div>
 
-        {/* Recent entries — scrollable, capped height */}
-        <RecentEntries entries={allEntries || []} categories={categories || []} fmt={fmt} />
+        {/* Recent entries */}
+        <RecentEntries
+          entries={allEntries || []}
+          categories={categories || []}
+          fmtFull={fmtFull}
+          onEdit={handleOpenEdit}
+        />
 
       </div>
 
-      <AddIncomeSheet isOpen={addOpen} onClose={() => setAddOpen(false)} prefillDate={prefillDate} onSaved={() => {}} />
+      {/* Add new entry */}
+      <AddIncomeSheet
+        isOpen={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSaved={() => {}}
+      />
+
+      {/* Edit existing entry */}
+      <AddIncomeSheet
+        isOpen={editOpen}
+        onClose={handleCloseEdit}
+        editEntry={editEntry || undefined}
+        onSaved={handleCloseEdit}
+        onDeleted={handleCloseEdit}
+      />
     </div>
   )
 }
 
-function RecentEntries({ entries, categories, fmt }: {
-  entries: IncomeEntry[]; categories: Category[]; fmt: (usd: number) => string
+function RecentEntries({ entries, categories, fmtFull, onEdit }: {
+  entries: IncomeEntry[]
+  categories: Category[]
+  fmtFull: (usd: number) => string
+  onEdit: (entry: IncomeEntry) => void
 }) {
   const recent = [...entries].sort((a, b) => b.date - a.date).slice(0, 30)
   if (recent.length === 0) return null
 
-  const ROW_HEIGHT = 60 // px per row
+  const ROW_HEIGHT = 60
   const VISIBLE_ROWS = 4
   const maxHeight = ROW_HEIGHT * VISIBLE_ROWS
 
@@ -225,10 +281,9 @@ function RecentEntries({ entries, categories, fmt }: {
     <GlassCard noPadding className="overflow-hidden">
       <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
         <div className="label">RECENT ENTRIES</div>
-        <div className="text-[10px] text-[var(--text-muted)] font-medium">{entries.length} total</div>
+        <div className="text-[10px] text-[var(--text-muted)] font-medium">{entries.length} total · click to edit</div>
       </div>
 
-      {/* Scrollable container with fade */}
       <div className="relative">
         <div
           className="divide-y divide-[var(--border-subtle)] overflow-y-auto"
@@ -239,7 +294,8 @@ function RecentEntries({ entries, categories, fmt }: {
             return (
               <div
                 key={entry.id}
-                className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--bg-secondary)] transition-colors group cursor-default"
+                onClick={() => onEdit(entry)}
+                className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--bg-secondary)] transition-colors group cursor-pointer"
                 style={{ height: ROW_HEIGHT }}
               >
                 {/* Color bar */}
@@ -269,17 +325,21 @@ function RecentEntries({ entries, categories, fmt }: {
                   </span>
                 </div>
                 {/* Amount */}
-                <div className="text-right flex-shrink-0 w-28">
-                  <div className="font-bold text-sm text-[var(--text-primary)] tabular-nums">{fmt(entry.amountUSD)}</div>
+                <div className="text-right flex-shrink-0 w-32">
+                  <div className="font-bold text-sm text-[var(--text-primary)] tabular-nums">{fmtFull(entry.amountUSD)}</div>
                   <div className="text-[10px] text-[var(--text-muted)]">
-                    {entry.amount.toLocaleString('en-ZA', { maximumFractionDigits: 0 })} {entry.currency}
+                    {entry.amount.toLocaleString('en-ZA', { maximumFractionDigits: 2 })} {entry.currency}
                   </div>
                 </div>
+                {/* Edit hint */}
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-[var(--text-faint)] flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round"/>
+                </svg>
               </div>
             )
           })}
         </div>
-        {/* Bottom fade */}
         {recent.length > VISIBLE_ROWS && (
           <div
             className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none"
@@ -291,8 +351,14 @@ function RecentEntries({ entries, categories, fmt }: {
   )
 }
 
-function MonthDrillDown({ month, categories, entries, fmt, onBack }: {
-  month: Date; categories: Category[]; entries: IncomeEntry[]; fmt: (usd: number) => string; onBack: () => void
+function MonthDrillDown({ month, categories, entries, fmt, fmtFull, onBack, onEditEntry }: {
+  month: Date
+  categories: Category[]
+  entries: IncomeEntry[]
+  fmt: (usd: number) => string
+  fmtFull: (usd: number) => string
+  onBack: () => void
+  onEditEntry: (entry: IncomeEntry) => void
 }) {
   const mStart = startOfMonth(month).getTime()
   const mEnd = endOfMonth(month).getTime()
@@ -370,21 +436,30 @@ function MonthDrillDown({ month, categories, entries, fmt, onBack }: {
                   {cat.name}
                 </button>
               ))}
+              <span className="ml-auto text-[10px] text-[var(--text-faint)]">click row to edit</span>
             </div>
             <div className="divide-y divide-[var(--border-subtle)] max-h-72 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
               {filteredEntries.sort((a, b) => b.date - a.date).map(entry => {
                 const cat = categories.find(c => c.id === entry.categoryId)
                 return (
-                  <div key={entry.id} className="flex items-center gap-4 px-6 py-3 hover:bg-[var(--bg-secondary)] transition-colors">
+                  <div
+                    key={entry.id}
+                    onClick={() => onEditEntry(entry)}
+                    className="flex items-center gap-4 px-6 py-3 hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer group"
+                  >
                     <div className="w-1 h-6 rounded-full flex-shrink-0" style={{ background: cat?.color || 'var(--accent)' }} />
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm text-[var(--text-primary)] truncate">{entry.sourceName}</div>
                       {entry.note && <div className="text-[11px] text-[var(--text-muted)]">{entry.note}</div>}
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <div className="font-bold text-sm text-[var(--text-primary)] tabular-nums">{fmt(entry.amountUSD)}</div>
+                      <div className="font-bold text-sm text-[var(--text-primary)] tabular-nums">{fmtFull(entry.amountUSD)}</div>
                       <div className="text-[11px] text-[var(--text-muted)]">{format(new Date(entry.date), 'MMM d')}</div>
                     </div>
+                    <svg viewBox="0 0 24 24" className="w-3 h-3 text-[var(--text-faint)] flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round"/>
+                    </svg>
                   </div>
                 )
               })}

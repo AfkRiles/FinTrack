@@ -52,10 +52,20 @@ export function formatUSD(amount: number): string {
   return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+/** Full-precision USD — no K/M abbreviation. Use for individual entry amounts. */
+export function formatUSDFull(amount: number): string {
+  return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export function formatZAR(amount: number): string {
   if (Math.abs(amount) >= 1_000_000) return `R${(amount / 1_000_000).toFixed(2)}M`
   if (Math.abs(amount) >= 1_000) return `R${(amount / 1_000).toFixed(1)}K`
   return `R${amount.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+/** Full-precision ZAR — no K/M abbreviation. Use for individual entry amounts. */
+export function formatZARFull(amount: number): string {
+  return 'R' + amount.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export function formatTime(ts: number): string {

@@ -4,12 +4,14 @@ import { subMonths, format } from 'date-fns'
 import { GlassCard } from '../components/ui/GlassCard'
 import { db } from '../lib/db'
 import { useAppStore } from '../store/useAppStore'
-import { formatZAR, formatUSD } from '../lib/fx'
+import { formatZAR, formatUSD, formatUSDFull, formatZARFull } from '../lib/fx'
 
 export function StatsPage() {
   const { currency, fxRate } = useAppStore()
   const rate = fxRate?.usdToZar || 18.5
+  // K-format for totals/summaries; full for individual entry amounts
   const fmt = (usd: number) => currency === 'ZAR' ? formatZAR(usd * rate) : formatUSD(usd)
+  const fmtFull = (usd: number) => currency === 'ZAR' ? formatZARFull(usd * rate) : formatUSDFull(usd)
 
   const entries    = useLiveQuery(() => db.incomeEntries.orderBy('date').toArray(), [])
   const categories = useLiveQuery(() => db.categories.toArray(), [])
@@ -271,7 +273,7 @@ export function StatsPage() {
                             <div className="flex-1" />
                             {/* Amount */}
                             <div className="text-right flex-shrink-0">
-                              <div className="text-sm font-bold text-[var(--text-primary)]">{fmt(e.amountUSD)}</div>
+                              <div className="text-sm font-bold text-[var(--text-primary)]">{fmtFull(e.amountUSD)}</div>
                               {e.currency !== 'USD' && (
                                 <div className="text-[10px] text-[var(--text-muted)]">
                                   {e.amount.toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} {e.currency}
@@ -283,7 +285,7 @@ export function StatsPage() {
                       })}
                       <div className="px-8 py-2.5 border-t border-[var(--border-subtle)] flex justify-between items-center">
                         <span className="text-xs text-[var(--text-muted)]">{clientEntries.length} entries</span>
-                        <span className="text-sm font-extrabold text-[var(--text-primary)]">{fmt(client.total)}</span>
+                        <span className="text-sm font-extrabold text-[var(--text-primary)]">{fmtFull(client.total)}</span>
                       </div>
                     </div>
                   )}
