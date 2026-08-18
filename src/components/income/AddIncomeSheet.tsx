@@ -23,7 +23,7 @@ interface AddIncomeSheetProps {
   onDeleted?: () => void
 }
 
-const CURRENCIES = ['ZAR', 'USD', 'USDC', 'ETH']
+const CURRENCIES = ['USDC', 'ZAR', 'ETH']
 
 // Premium color palette for new categories
 const PREMIUM_COLORS = ['#0D9488', '#4F46E5', '#D97706', '#2563EB', '#DC2626', '#7C3AED', '#0891B2']
@@ -43,7 +43,7 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
   const [categories, setCategories] = useState<Category[]>([])
   const [categoryId, setCategoryId] = useState('')
   const [amount, setAmount] = useState('')
-  const [currency, setCurrency] = useState('ZAR')
+  const [currency, setCurrency] = useState('USDC')
   const [date, setDate] = useState(format(prefillDate || new Date(), 'yyyy-MM-dd'))
   const [sourceName, setSourceName] = useState('')
   const [note, setNote] = useState('')
@@ -64,7 +64,7 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
       } else {
         setCategoryId('')
         setAmount('')
-        setCurrency('ZAR')
+        setCurrency('USDC')
         setDate(format(prefillDate || new Date(), 'yyyy-MM-dd'))
         setSourceName('')
         setNote('')
@@ -98,7 +98,7 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
 
       let amountUSD = raw
       if (currency === 'ZAR') amountUSD = raw / rate
-      else if (currency === 'USDT' || currency === 'USDC') amountUSD = raw
+      else if (currency === 'USDC') amountUSD = raw
 
       const amountZAR = amountUSD * rate
 
