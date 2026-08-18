@@ -119,47 +119,33 @@ export function IncomePage() {
       <div className="p-8 space-y-5 page-enter">
 
         {/* Page header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">Dashboard</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-0.5">{format(now, 'EEEE, MMMM d, yyyy')}</p>
-          </div>
-          {/* Add Entry button */}
-          <button
-            onClick={() => setAddOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white transition-all cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 4px 16px rgba(5,150,105,0.3)' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
-          >
-            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
-              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-            </svg>
-            Add Entry
-          </button>
+        <div>
+          <h1 className="text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">Dashboard</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-0.5">{format(now, 'EEEE, MMMM d, yyyy')}</p>
         </div>
 
         {/* Stat cards row */}
         <div className="grid grid-cols-4 gap-4">
           {/* This Month — clicking shows current month detail */}
-          <div
-            className="glass rounded-3xl p-5 card-hover cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #10B981, #059669)', border: '1px solid rgba(255,255,255,0.12)' }}
+          <GlassCard
+            className="card-hover cursor-pointer"
+            style={{ borderLeft: '3px solid var(--accent)' } as React.CSSProperties}
             onClick={() => { setDrillMonth(startOfMonth(now)); setSelectedMonthIndex(now.getMonth()) }}
           >
-            <div className="label text-white/60">THIS MONTH</div>
-            <div className="mt-2 text-3xl font-extrabold text-white tracking-tight leading-none">
+            <div className="label" style={{ color: 'var(--accent)' }}>THIS MONTH</div>
+            <div className="mt-2 text-3xl font-extrabold tracking-tight leading-none" style={{ color: 'var(--accent)' }}>
               {thisMonthTotal === 0 ? (currency === 'ZAR' ? 'R0' : '$0') : fmt(thisMonthTotal)}
             </div>
             <div className="mt-1.5 flex items-center gap-2">
-              <div className="text-white/60 text-xs">{format(now, 'MMMM yyyy')}</div>
+              <div className="text-xs text-[var(--text-muted)]">{format(now, 'MMMM yyyy')}</div>
               {momPct !== null && (
-                <div className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${momPct >= 0 ? 'bg-white/15 text-white' : 'bg-black/15 text-white/80'}`}>
-                  {momPct >= 0 ? '↑' : '↓'} {Math.abs(momPct).toFixed(0)}%
+                <div className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${momPct >= 0 ? 'bg-[var(--accent-dim)] text-[var(--accent)]' : 'bg-red-400/10 text-red-400'}`}>
+                  {momPct >= 0 ? '+' : ''}{momPct.toFixed(0)}%
                 </div>
               )}
             </div>
-          </div>
+            <div className="text-[10px] text-[var(--text-faint)] mt-2">tap to view details →</div>
+          </GlassCard>
 
           <GlassCard className="card-hover">
             <div className="label">YEAR TO DATE</div>

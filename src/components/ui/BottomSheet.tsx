@@ -41,11 +41,11 @@ export function BottomSheet({ isOpen, onClose, title, children, tall }: BottomSh
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-6 pt-5 pb-4 flex-shrink-0 border-b border-[rgba(255,255,255,0.07)]">
-            <h2 className="text-lg font-bold text-white tracking-tight">{title}</h2>
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 flex-shrink-0 border-b border-[var(--border)]">
+            <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">{title}</h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-[rgba(255,255,255,0.08)] transition-all cursor-pointer"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all cursor-pointer"
             >
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
                 <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />

@@ -23,16 +23,16 @@ interface AddIncomeSheetProps {
   onDeleted?: () => void
 }
 
-const CURRENCIES = ['ZAR', 'USD', 'USDT', 'USDC', 'ETH', 'SOL']
+const CURRENCIES = ['ZAR', 'USD', 'USDC', 'ETH']
 
 // Premium color palette for new categories
 const PREMIUM_COLORS = ['#0D9488', '#4F46E5', '#D97706', '#2563EB', '#DC2626', '#7C3AED', '#0891B2']
 
-// Input style for dark glass modal
+// Theme-aware input style (uses CSS vars set per light/dark mode)
 const inputStyle = {
-  background: 'rgba(255,255,255,0.07)',
-  border: '1px solid rgba(255,255,255,0.10)',
-  color: '#F9FAFB',
+  background: 'var(--input-bg)',
+  border: '1px solid var(--input-border)',
+  color: 'var(--text-primary)',
   borderRadius: '12px',
   outline: 'none',
   transition: 'border-color 0.15s ease',
@@ -145,19 +145,19 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
 
         {/* Category */}
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-2.5">Category</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Category</div>
           <div className="flex flex-wrap gap-2">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setCategoryId(cat.id)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  categoryId === cat.id ? 'text-white' : 'text-[rgba(255,255,255,0.55)] hover:text-white'
+                  categoryId === cat.id ? 'text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
                 style={
                   categoryId === cat.id
                     ? { background: cat.color, boxShadow: `0 4px 16px ${cat.color}44` }
-                    : { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)' }
+                    : { background: 'var(--input-bg)', border: '1px solid var(--input-border)' }
                 }
               >
                 <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle" style={{ background: cat.color }} />
@@ -166,8 +166,8 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
             ))}
             <button
               onClick={() => setShowNewCat(!showNewCat)}
-              className="px-3.5 py-1.5 rounded-full text-xs font-bold text-[rgba(255,255,255,0.55)] hover:text-white transition-all cursor-pointer"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all cursor-pointer"
+              style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
             >
               + New
             </button>
@@ -182,7 +182,7 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
                 style={inputStyle}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
                 onFocus={e => (e.target.style.borderColor = 'rgba(16,185,129,0.6)')}
-                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--input-border)')}
               />
               <button
                 onClick={handleAddCategory}
@@ -197,7 +197,7 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
 
         {/* Amount + Currency */}
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-2.5">Amount</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Amount</div>
           <div className="flex gap-2">
             <input
               type="number"
@@ -208,7 +208,7 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
               style={inputStyle}
               inputMode="decimal"
               onFocus={e => (e.target.style.borderColor = 'rgba(16,185,129,0.6)')}
-              onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
+              onBlur={e => (e.target.style.borderColor = 'var(--input-border)')}
             />
             <select
               value={currency}
@@ -217,7 +217,7 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
               style={{ ...inputStyle, minWidth: 80 }}
             >
               {CURRENCIES.map((c) => (
-                <option key={c} value={c} style={{ background: '#14141E', color: '#F9FAFB' }}>{c}</option>
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
@@ -225,21 +225,21 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
 
         {/* Date */}
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-2.5">Date</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Date</div>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className="w-full px-4 py-3.5 text-sm"
-            style={{ ...inputStyle, colorScheme: 'dark' }}
+            style={inputStyle}
             onFocus={e => (e.target.style.borderColor = 'rgba(16,185,129,0.6)')}
-            onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
+            onBlur={e => (e.target.style.borderColor = 'var(--input-border)')}
           />
         </div>
 
         {/* Source name */}
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-2.5">Client / Source</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Client / Source</div>
           <input
             value={sourceName}
             onChange={(e) => setSourceName(e.target.value)}
@@ -247,13 +247,13 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
             className="w-full px-4 py-3.5 text-sm"
             style={inputStyle}
             onFocus={e => (e.target.style.borderColor = 'rgba(16,185,129,0.6)')}
-            onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
+            onBlur={e => (e.target.style.borderColor = 'var(--input-border)')}
           />
         </div>
 
         {/* Note */}
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[rgba(255,255,255,0.4)] mb-2.5">Note <span className="normal-case font-normal">(optional)</span></div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2.5">Note <span className="normal-case font-normal">(optional)</span></div>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -262,7 +262,7 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
             className="w-full px-4 py-3.5 text-sm resize-none"
             style={inputStyle}
             onFocus={e => (e.target.style.borderColor = 'rgba(16,185,129,0.6)')}
-            onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.10)')}
+            onBlur={e => (e.target.style.borderColor = 'var(--input-border)')}
           />
         </div>
 
@@ -274,7 +274,7 @@ export function AddIncomeSheet({ isOpen, onClose, prefillDate, editEntry, onSave
           style={
             canSave
               ? { background: 'linear-gradient(135deg, #10B981, #059669)', color: '#fff', boxShadow: '0 4px 20px rgba(5,150,105,0.35)', transform: 'translateY(0)' }
-              : { background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.3)', cursor: 'not-allowed' }
+              : { background: 'var(--bg-secondary)', color: 'var(--text-faint)', cursor: 'not-allowed' }
           }
           onMouseEnter={e => { if (canSave) (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
