@@ -16,7 +16,7 @@ export function WalletBook() {
   const [adding, setAdding] = useState<AddressBookEntry['currency'] | null>(null)
   const [newLabel, setNewLabel] = useState('')
   const [newAddr, setNewAddr] = useState('')
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ USDT: true, USDC: true, ETH: true })
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ USDT: false, USDC: false, ETH: false })
 
   const handleCopy = async (id: string, address: string) => {
     await navigator.clipboard.writeText(address)
