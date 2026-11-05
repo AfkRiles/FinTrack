@@ -4,9 +4,11 @@ import { Sidebar } from './components/layout/Sidebar'
 import { IncomePage } from './pages/Income'
 import { NetWorthPage } from './pages/NetWorth'
 import { StatsPage } from './pages/Stats'
+import { SpendingPage } from './pages/Spending'
 import { SettingsModal } from './pages/Settings'
 import { seedDefaultCategories, migrateCategories, normalizeSourceNames, seedAddressBook } from './lib/db'
 import { seedImportedData } from './lib/seedData'
+import { seedSpendingData } from './lib/seedSpending'
 import { ensureFXRate } from './lib/fx'
 import { seedWallets } from './lib/walletSync'
 
@@ -43,6 +45,7 @@ export default function App() {
       seedImportedData(),
       seedAddressBook(),
       seedWallets(),
+      seedSpendingData(),
     ]).then(() => Promise.all([migrateCategories(), normalizeSourceNames()])).then(() => setMounted(true))
     ensureFXRate().then(rate => setFXRate({ usdToZar: rate, fetchedAt: Date.now() }))
   }, [])
@@ -74,6 +77,7 @@ export default function App() {
           {activeTab === 'income' && <IncomePage />}
           {activeTab === 'networth' && <NetWorthPage />}
           {activeTab === 'stats' && <StatsPage />}
+          {activeTab === 'spending' && <SpendingPage />}
         </div>
       </main>
 

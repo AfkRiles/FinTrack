@@ -8,6 +8,9 @@ import type {
   CashHolding,
   NetWorthSnapshot,
   AddressBookEntry,
+  BankTransaction,
+  MerchantRule,
+  ImportRecord,
 } from '../types'
 
 export class FinTrackDB extends Dexie {
@@ -19,6 +22,9 @@ export class FinTrackDB extends Dexie {
   cashHoldings!: Table<CashHolding>
   netWorthSnapshots!: Table<NetWorthSnapshot>
   addressBook!: Table<AddressBookEntry>
+  bankTransactions!: Table<BankTransaction>
+  merchantRules!: Table<MerchantRule>
+  importRecords!: Table<ImportRecord>
 
   constructor() {
     super('fintrack')
@@ -37,6 +43,12 @@ export class FinTrackDB extends Dexie {
     // v3: address book for copy-paste receiving addresses
     this.version(3).stores({
       addressBook: 'id, currency, createdAt',
+    })
+    // v4: spending / Ether.fi transaction layer
+    this.version(4).stores({
+      bankTransactions: 'id, source, monthKey, type, status, timestamp',
+      merchantRules: 'id, createdAt',
+      importRecords: 'id, importedAt',
     })
   }
 }

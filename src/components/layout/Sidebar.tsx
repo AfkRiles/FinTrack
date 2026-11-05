@@ -39,6 +39,17 @@ const NAV: { id: Tab; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    id: 'spending',
+    label: 'Spending',
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2}>
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <path d="M2 10h20" strokeLinecap="round" />
+        <path d="M6 15h4" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ]
 
 interface SidebarProps {
