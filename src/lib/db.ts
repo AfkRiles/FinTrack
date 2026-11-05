@@ -7,6 +7,7 @@ import type {
   StockHolding,
   CashHolding,
   NetWorthSnapshot,
+  AddressBookEntry,
 } from '../types'
 
 export class FinTrackDB extends Dexie {
@@ -17,6 +18,7 @@ export class FinTrackDB extends Dexie {
   stockHoldings!: Table<StockHolding>
   cashHoldings!: Table<CashHolding>
   netWorthSnapshots!: Table<NetWorthSnapshot>
+  addressBook!: Table<AddressBookEntry>
 
   constructor() {
     super('fintrack')
@@ -29,9 +31,12 @@ export class FinTrackDB extends Dexie {
       cashHoldings: 'id, label',
       netWorthSnapshots: 'id, date',
     })
-    // v2: wallets gains optional zpub field for HD wallet scanning
     this.version(2).stores({
       wallets: 'id, chain, address, zpub',
+    })
+    // v3: address book for copy-paste receiving addresses
+    this.version(3).stores({
+      addressBook: 'id, currency, createdAt',
     })
   }
 }
@@ -71,6 +76,25 @@ export async function normalizeSourceNames() {
     .filter(e => normalize(e.sourceName) !== e.sourceName)
     .map(e => db.incomeEntries.update(e.id, { sourceName: normalize(e.sourceName) }))
   await Promise.all(updates)
+}
+
+// Seed default address book entries (only runs once on empty table)
+export async function seedAddressBook() {
+  const count = await db.addressBook.count()
+  if (count > 0) return
+  const t = Date.now()
+  await db.addressBook.bulkAdd([
+    // USDT
+    { id: crypto.randomUUID(), label: 'Ledger',   address: '0xccE01C00E6E80aA826f3F0eCCE0b23848eA5d244', currency: 'USDT', createdAt: t },
+    { id: crypto.randomUUID(), label: 'VALR',     address: '0x3D38332D2E540d221a42aA12Ea8CdE14A87b1edF', currency: 'USDT', createdAt: t + 1 },
+    // USDC
+    { id: crypto.randomUUID(), label: 'Ledger',   address: '0xccE01C00E6E80aA826f3F0eCCE0b23848eA5d244', currency: 'USDC', createdAt: t + 2 },
+    { id: crypto.randomUUID(), label: 'VALR',     address: '0x3D38332D2E540d221a42aA12Ea8CdE14A87b1edF', currency: 'USDC', createdAt: t + 3 },
+    // ETH
+    { id: crypto.randomUUID(), label: 'Ledger',   address: '0xccE01C00E6E80aA826f3F0eCCE0b23848eA5d244', currency: 'ETH', createdAt: t + 4 },
+    { id: crypto.randomUUID(), label: 'Metamask', address: '0x5F42932C20e26052dF4799Bb93FDFcfF08346337', currency: 'ETH', createdAt: t + 5 },
+    { id: crypto.randomUUID(), label: 'VALR',     address: '0xaD4963811f59454314E076f7aec8936fC68d4732', currency: 'ETH', createdAt: t + 6 },
+  ])
 }
 
 // Migrate existing categories to current colors

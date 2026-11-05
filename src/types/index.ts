@@ -71,3 +71,11 @@ export interface FXRate {
   usdToZar: number
   fetchedAt: number
 }
+
+export interface AddressBookEntry {
+  id: string
+  label: string
+  address: string
+  currency: 'USDT' | 'USDC' | 'ETH'
+  createdAt: number
+}

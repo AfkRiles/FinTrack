@@ -5,7 +5,7 @@ import { IncomePage } from './pages/Income'
 import { NetWorthPage } from './pages/NetWorth'
 import { StatsPage } from './pages/Stats'
 import { SettingsModal } from './pages/Settings'
-import { seedDefaultCategories, migrateCategories, normalizeSourceNames } from './lib/db'
+import { seedDefaultCategories, migrateCategories, normalizeSourceNames, seedAddressBook } from './lib/db'
 import { seedImportedData } from './lib/seedData'
 import { ensureFXRate } from './lib/fx'
 import { seedWallets } from './lib/walletSync'
@@ -41,6 +41,7 @@ export default function App() {
     Promise.all([
       seedDefaultCategories(),
       seedImportedData(),
+      seedAddressBook(),
       seedWallets(),
     ]).then(() => Promise.all([migrateCategories(), normalizeSourceNames()])).then(() => setMounted(true))
     ensureFXRate().then(rate => setFXRate({ usdToZar: rate, fetchedAt: Date.now() }))
