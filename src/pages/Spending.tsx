@@ -203,13 +203,13 @@ function ImportModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-// ── Weekly bar chart ──────────────────────────────────────────────────────────
+// ── Bar chart with axes ───────────────────────────────────────────────────────
 
 function WeeklyBarChart({ monthKey, spends }: { monthKey: string; spends: BankTransaction[] }) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const [y, m] = monthKey.split('-').map(Number)
   const daysInMonth = new Date(y, m, 0).getDate()
 
-  // Build 5 periods
   const periods = [
     { label: '1–7', start: 1, end: 7 },
     { label: '8–14', start: 8, end: 14 },
@@ -220,44 +220,99 @@ function WeeklyBarChart({ monthKey, spends }: { monthKey: string; spends: BankTr
 
   const buckets = periods.map(p => {
     const total = spends
-      .filter(tx => {
-        const day = new Date(tx.timestamp).getDate()
-        return day >= p.start && day <= p.end
-      })
+      .filter(tx => { const day = new Date(tx.timestamp).getDate(); return day >= p.start && day <= p.end })
       .reduce((s, tx) => s + (isRefund(tx) ? -tx.amountZar : tx.amountZar), 0)
-    const count = spends.filter(tx => {
-      const day = new Date(tx.timestamp).getDate()
-      return day >= p.start && day <= p.end && isSpend(tx)
-    }).length
+    const count = spends.filter(tx => { const day = new Date(tx.timestamp).getDate(); return day >= p.start && day <= p.end && isSpend(tx) }).length
     return { ...p, total: Math.max(0, total), count }
   })
 
   const maxVal = Math.max(...buckets.map(b => b.total), 1)
 
+  // Y-axis ticks: 4 nice round steps from 0 to max
+  const niceMax = Math.ceil(maxVal / 1000) * 1000 || 1000
+  const yTicks = [0, niceMax * 0.25, niceMax * 0.5, niceMax * 0.75, niceMax].map(v => Math.round(v))
+
+  const CHART_H = 160  // px height of bar area
+  const Y_LABEL_W = 52 // px width for y-axis labels
+  const BAR_GAP = 10
+
   return (
-    <div className="flex items-end gap-2 h-32 px-1">
-      {buckets.map((b, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
-          <div className="relative w-full" style={{ height: '96px', display: 'flex', alignItems: 'flex-end' }}>
-            <div
-              className="w-full rounded-t-md transition-all"
-              style={{
-                height: `${Math.max(4, (b.total / maxVal) * 92)}px`,
-                background: b.total > 0 ? 'var(--accent)' : 'var(--bg-secondary)',
-                opacity: b.total > 0 ? 0.85 : 1,
-              }}
-            />
-            {/* Tooltip */}
-            {b.total > 0 && (
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold" style={{ background: 'var(--surface-modal)', border: '1px solid var(--border)', color: 'var(--text-primary)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-                {b.label} {MONTHS[m-1].slice(0,3)}<br/>
-                <span className="text-[var(--accent)]">{fmtZAR(b.total)}</span> · {b.count} tx
-              </div>
-            )}
-          </div>
-          <span className="text-[9px] text-[var(--text-faint)] font-medium">{b.label}</span>
+    <div className="relative w-full select-none">
+      <div className="flex">
+        {/* Y-axis labels */}
+        <div className="flex flex-col-reverse justify-between pb-6" style={{ width: Y_LABEL_W, height: CHART_H + 24 }}>
+          {yTicks.map(v => (
+            <span key={v} className="text-[10px] text-[var(--text-faint)] font-medium leading-none text-right pr-2">
+              {v >= 1000 ? `R${(v/1000).toFixed(0)}k` : `R${v}`}
+            </span>
+          ))}
         </div>
-      ))}
+
+        {/* Bars + x-axis */}
+        <div className="flex-1 relative">
+          {/* Horizontal grid lines */}
+          <div className="absolute inset-0 pb-6 flex flex-col-reverse justify-between pointer-events-none" style={{ height: CHART_H + 24 }}>
+            {yTicks.map((_, i) => (
+              <div key={i} className="border-t w-full" style={{ borderColor: 'var(--border-subtle)', opacity: i === 0 ? 0.8 : 0.4 }} />
+            ))}
+          </div>
+
+          {/* Bars */}
+          <div className="flex items-end gap-2 pb-6" style={{ height: CHART_H + 24 }}>
+            {buckets.map((b, i) => {
+              const barH = Math.max(b.total > 0 ? 4 : 0, (b.total / niceMax) * CHART_H)
+              const isHovered = hoveredIdx === i
+              return (
+                <div
+                  key={i}
+                  className="flex-1 flex flex-col items-center justify-end cursor-pointer relative"
+                  style={{ height: CHART_H }}
+                  onMouseEnter={() => setHoveredIdx(i)}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                >
+                  {/* Tooltip */}
+                  {isHovered && b.total > 0 && (
+                    <div
+                      className="absolute z-20 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold pointer-events-none"
+                      style={{
+                        bottom: barH + 10,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: 'var(--surface-modal)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-primary)',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+                      }}
+                    >
+                      <div style={{ color: 'var(--accent)' }}>{fmtZAR(b.total)}</div>
+                      <div style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{b.count} transaction{b.count !== 1 ? 's' : ''}</div>
+                    </div>
+                  )}
+                  <div
+                    className="w-full rounded-t-lg transition-all duration-150"
+                    style={{
+                      height: barH,
+                      background: b.total > 0
+                        ? (isHovered ? 'var(--accent)' : 'var(--accent-light)')
+                        : 'var(--bg-secondary)',
+                      opacity: b.total > 0 ? (isHovered ? 1 : 0.7) : 1,
+                    }}
+                  />
+                </div>
+              )
+            })}
+          </div>
+
+          {/* X-axis labels */}
+          <div className="flex gap-2" style={{ marginTop: -20 }}>
+            {buckets.map((b, i) => (
+              <div key={i} className="flex-1 text-center">
+                <span className="text-[10px] font-medium" style={{ color: hoveredIdx === i ? 'var(--accent)' : 'var(--text-faint)' }}>{b.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -628,21 +683,17 @@ export function SpendingPage() {
         ) : (
           <>
             {/* Summary cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: 'Money In', value: totalIn, sub: `${moneyIns.length} deposit${moneyIns.length !== 1 ? 's' : ''}`, color: 'var(--accent)' },
-                { label: 'Spent', value: totalSpent, sub: `${spends.length} transaction${spends.length !== 1 ? 's' : ''}`, color: 'var(--text-primary)' },
-                { label: 'Fees', value: totalFees, sub: totalFees === 0 ? 'No fees charged' : `${fees.length} fee${fees.length !== 1 ? 's' : ''}`, color: 'var(--text-muted)' },
-                { label: 'Net Flow', value: netFlow, sub: totalCashback > 0 ? `Cashback: $${totalCashback.toFixed(2)}` : '', color: netFlow >= 0 ? 'var(--accent)' : 'var(--orange)', isNet: true },
-              ].map((card, i) => (
-                <div key={i} className="rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">{card.label}</div>
-                  <div className="text-xl font-bold tracking-tight" style={{ color: card.color }}>
-                    {card.isNet && card.value > 0 ? '+' : ''}{fmtZAR(Math.abs(card.value))}
-                  </div>
-                  {card.sub && <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{card.sub}</div>}
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Money In</div>
+                <div className="text-xl font-bold tracking-tight" style={{ color: 'var(--accent)' }}>{fmtZAR(totalIn)}</div>
+                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{moneyIns.length} deposit{moneyIns.length !== 1 ? 's' : ''}</div>
+              </div>
+              <div className="rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">Spent</div>
+                <div className="text-xl font-bold tracking-tight text-[var(--text-primary)]">{fmtZAR(totalSpent)}</div>
+                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{spends.length} transaction{spends.length !== 1 ? 's' : ''}{totalCashback > 0 ? ` · $${totalCashback.toFixed(2)} cashback` : ''}</div>
+              </div>
             </div>
 
             {/* Charts row */}
