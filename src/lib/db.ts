@@ -45,7 +45,7 @@ export const db = new FinTrackDB()
 
 // Premium color palette
 const PREMIUM_CATEGORY_COLORS: Record<string, string> = {
-  'Clients':      '#D97706', // amber — was Airdrops, now Clients
+  'Clients':      '#FF7A00', // brand orange
   'Airdrops':     '#3B82F6', // blue
   'Angle Rounds': '#4F46E5', // royal indigo
 }

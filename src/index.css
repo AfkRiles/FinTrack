@@ -33,6 +33,12 @@
     --accent-dim:   rgba(75, 189, 181, 0.10);
     --accent-glow:  0 4px 20px rgba(92, 200, 90, 0.28);
 
+    /* Orange — brand gradient */
+    --orange:          #FF7A00;
+    --orange-light:    #FFC200;
+    --orange-dim:      rgba(255, 122, 0, 0.12);
+    --orange-gradient: linear-gradient(135deg, #FFC200, #FF4500);
+
     /* Inputs */
     --input-bg:     rgba(0, 0, 0, 0.04);
     --input-border: rgba(0, 0, 0, 0.10);
