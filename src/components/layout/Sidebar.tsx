@@ -86,16 +86,8 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
         {/* Logo — fixed */}
         <div className="flex-shrink-0 px-5 pt-5 pb-4 flex items-center gap-3">
-          <div className="w-8 h-8 btn-primary rounded-xl flex items-center justify-center flex-shrink-0">
-            <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.5}>
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <div>
-            <div className="font-bold text-sm text-[var(--text-primary)] leading-tight tracking-tight">FinTrack</div>
-            <div className="text-[10px] text-[var(--text-muted)] font-medium tracking-wide">Personal Finance</div>
-          </div>
+          <img src="/favicon.png" alt="FinTrack" className="w-8 h-8 rounded-xl flex-shrink-0" />
+          <div className="font-bold text-sm text-[var(--text-primary)] leading-tight tracking-tight">FinTrack</div>
         </div>
 
         {/* Nav — fixed */}

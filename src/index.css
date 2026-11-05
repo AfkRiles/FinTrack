@@ -27,11 +27,11 @@
     --text-muted:     #6E6E73;
     --text-faint:     #AEAEB2;
 
-    /* Accent — deep emerald */
-    --accent:       #059669;
-    --accent-light: #10B981;
-    --accent-dim:   rgba(5, 150, 105, 0.10);
-    --accent-glow:  0 4px 20px rgba(5, 150, 105, 0.28);
+    /* Accent — logo gradient */
+    --accent:       #5CC85A;
+    --accent-light: #4BBDB5;
+    --accent-dim:   rgba(75, 189, 181, 0.10);
+    --accent-glow:  0 4px 20px rgba(92, 200, 90, 0.28);
 
     /* Inputs */
     --input-bg:     rgba(0, 0, 0, 0.04);
@@ -73,10 +73,10 @@
     --text-muted:     #8E8E93;
     --text-faint:     #48484A;
 
-    --accent:       #10B981;
-    --accent-light: #34D399;
-    --accent-dim:   rgba(16, 185, 129, 0.12);
-    --accent-glow:  0 4px 20px rgba(16, 185, 129, 0.22);
+    --accent:       #6DC95A;
+    --accent-light: #4BBDB5;
+    --accent-dim:   rgba(75, 189, 181, 0.12);
+    --accent-glow:  0 4px 20px rgba(109, 201, 90, 0.22);
 
     --input-bg:     rgba(255, 255, 255, 0.07);
     --input-border: rgba(255, 255, 255, 0.10);
